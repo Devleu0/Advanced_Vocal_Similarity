@@ -1,0 +1,38 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install PyTorch (CPU version for CI)
+      # PyTorch와 torchaudio는 특정 CUDA 버전에 종속될 수 있으므로, CI에서는 CPU 버전을 명시적으로 설치합니다.
+      # requirements.txt에 명시된 버전을 사용합니다.
+      run: pip install torch==2.1.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cpu
+
+    - name: Install other dependencies
+      # torch와 torchaudio를 제외한 나머지 필수 의존성을 설치합니다.
+      # --no-deps 옵션으로 이미 설치된 torch/torchaudio를 다시 설치하지 않도록 합니다.
+      run: pip install -r requirements.txt --no-deps
+
+    - name: Install development dependencies
+      run: pip install -r requirements-dev.txt
+
+    - name: Run tests
+      run: python -m pytest tests/

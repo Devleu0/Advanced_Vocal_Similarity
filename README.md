@@ -33,7 +33,7 @@
 ## 💻 사전 요구 사항 (Prerequisites)
 
 1.  **Python 3.11 이상**
-2.  **NVIDIA GPU 및 CUDA Toolkit (11.8 이상 권장)** 
+2.  **PyTorch 설치:** NVIDIA GPU 및 CUDA Toolkit 사용 시 [PyTorch 공식 홈페이지](https://pytorch.org/get-started/locally/)를 참고하여 환경에 맞는 버전을 설치해 주세요. CPU 전용 환경의 경우에도 해당 링크에서 CPU 버전을 설치할 수 있습니다.
 3.  **FFmpeg (필수):** 오디오 파일 변환 및 처리를 위해 반드시 시스템 환경 변수(`PATH`)에 등록되어 있어야 합니다.
 
 ---
