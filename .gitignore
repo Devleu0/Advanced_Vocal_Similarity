@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+
+# Logs
+*.log
+
+# Outputs
+database/
+
+# Inputs (optional, depending on user preference)
+inputs/
+
+# Gemini CLI temporary directory
+.gemini/
+
+# OS generated files
+.DS_Store
+Thumbs.db

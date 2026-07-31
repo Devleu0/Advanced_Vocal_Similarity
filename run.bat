@@ -4,22 +4,43 @@ echo ==============================================
 echo  Vocal Similarity Pipeline Launcher
 echo ==============================================
 
-if not exist "venv" (
-    echo [*] 최초 실행을 감지했습니다. 가상환경(venv)을 생성합니다...
-    python -m venv venv
-    call venv\Scripts\activate
-    
-    echo [*] 필수 라이브러리를 설치합니다 (PyTorch 등 용량이 커 다소 시간이 소요됩니다)...
-    python -m pip install --upgrade pip
-    pip install -r requirements.txt
-) else (
-    echo [*] 기존 가상환경을 활성화합니다...
-    call venv\Scripts\activate
+REM Check for python
+python --version >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [!] Python is not installed or not in PATH. Please install Python 3.11+.
+    pause
+    exit /b 1
 )
 
-echo [*] 파이프라인(main.py) 구동을 시작합니다...
-echo ==============================================
-python main.py
+
+if not exist "venv" (
+    echo [*] First-time setup. Creating virtual environment (venv)...
+    python -m venv venv
+    
+    echo [*] Installing required libraries (this may take some time as PyTorch is large)...
+    echo [*] Upgrading pip...
+    .\venv\Scripts\python.exe -m pip install --upgrade pip >nul
+    
+    echo [*] Installing production requirements...
+    .\venv\Scripts\pip.exe install -r requirements.txt
+    
+    if exist "requirements-dev.txt" (
+        echo [*] Installing development requirements...
+        .\venv\Scripts\pip.exe install -r requirements-dev.txt
+    )
+
+) else (
+    echo [*] Virtual environment found. Activating...
+)
 
 echo.
+echo ==============================================
+echo [*] Starting the pipeline (main.py)...
+echo ==============================================
+.\venv\Scripts\python.exe main.py
+
+echo.
+echo ==============================================
+echo [*] Pipeline finished.
+echo ==============================================
 pause
