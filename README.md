@@ -21,6 +21,15 @@
 
 ---
 
+## 🛠️ 코드 모듈화 및 개선 (Code Modularization and Improvements)
+
+프로젝트의 유지보수성, 가독성, 확장성 증진을 위해 코드를 기능별로 모듈화하고 로깅 시스템을 도입했습니다.
+
+*   **모듈 분리:** `main.py`에 집중되어 있던 로직을 `config.py`, `models.py`, `processing.py`, `visualization.py`, `utils.py`, `logger.py` 등 여러 파일로 분리하여 각 모듈의 역할과 책임을 명확히 했습니다.
+*   **로깅 시스템 도입:** `print()` 문 대신 Python의 `logging` 모듈을 활용하여 콘솔 및 `pipeline.log` 파일에 상세한 실행 로그를 기록합니다. 이를 통해 문제 발생 시 원인 파악 및 디버깅이 훨씬 용이해졌습니다.
+
+---
+
 ## 💻 사전 요구 사항 (Prerequisites)
 
 1.  **Python 3.11 이상**
@@ -39,7 +48,7 @@
 python -m venv venv
 source venv/Scripts/activate  # (Windows의 경우 venv\Scripts\activate)
 pip install -r requirements.txt
-
+pip install -r requirements-dev.txt # 개발 및 테스트 의존성 설치
 ```
 
 ### STEP 2. 입력 데이터 준비 (`inputs/`)
@@ -52,7 +61,6 @@ pip install -r requirements.txt
 ```text
 [https://www.youtube.com/watch?v=abcd1234efg](https://www.youtube.com/watch?v=abcd1234efg)
 [https://youtu.be/xyz9876qwer](https://youtu.be/xyz9876qwer)
-
 ```
 
 ### STEP 3. 파이프라인 실행
@@ -61,15 +69,24 @@ pip install -r requirements.txt
 
 ```bash
 python main.py
-
 ```
 
 ### STEP 4. 결과물 확인 (`database/`)
 
 실행이 완료되면 자동으로 생성된 `database` 폴더 내부에 다음 2개의 최종 결과물이 생성됩니다.
 
-* **`vocal_clustermap.png`:** 가수의 수에 비례하여 동적으로 크기가 조절되며, 가독성 높은 `mako` 컬러맵이 적용된 유사도 히트맵 및 계층적 군집(Dendrogram) 이미지.
-* **`vocal_similarities.txt`:** 정확한 유사도 수치(0.00 ~ 1.00)가 기록된 매트릭스 텍스트 파일.
+*   **`vocal_clustermap.png`:** 가수의 수에 비례하여 동적으로 크기가 조절되며, 가독성 높은 `mako` 컬러맵이 적용된 유사도 히트맵 및 계층적 군집(Dendrogram) 이미지.
+*   **`vocal_similarities.txt`:** 정확한 유사도 수치(0.00 ~ 1.00)가 기록된 매트릭스 텍스트 파일.
+
+---
+
+## 🧪 테스트 실행 (Running Tests)
+
+프로젝트의 안정성을 보장하기 위해 `pytest`를 사용하여 단위 테스트를 작성했습니다. 테스트를 실행하려면 다음 명령어를 사용하세요.
+
+```bash
+python -m pytest tests/
+```
 
 ---
 
@@ -78,27 +95,39 @@ python main.py
 ```text
 vocal-similarity/
 │
-├── main.py            # 파이프라인 실행 메인 스크립트
-├── run.bat                # 원클릭 실행 및 가상환경 세팅 배치 파일
-├── requirements.txt       # 파이썬 의존성 패키지 목록
+├── main.py                # 전체 파이프라인 실행 및 조율
+├── config.py              # 전역 설정 및 하이퍼파라미터 정의
+├── models.py              # SpeechBrain, Audio-Separator 등 모델 로딩 관리
+├── processing.py          # 유튜브 다운로드, 보컬 분리, 지문 추출 등 핵심 처리 로직
+├── visualization.py       # 유사도 행렬 생성 및 히트맵 시각화
+├── utils.py               # 공통 유틸리티 함수 (e.g., 비디오 ID 추출, 폰트 설정)
+├── logger.py              # 중앙 집중식 로깅 설정 및 관리
+├── run.bat                # (Windows) 원클릭 실행 및 가상환경 세팅 배치 파일
+├── requirements.txt       # 파이썬 의존성 패키지 목록 (운영)
+├── requirements-dev.txt   # 개발 및 테스트용 파이썬 의존성 패키지 목록
 ├── README.md              # 프로젝트 설명서
 │
 ├── inputs/                # [사용자 영역] 입력 데이터 폴더 (직접 생성 필요)
 │   ├── 가수A.txt          # 유튜브 URL 목록 (엔터로 구분)
 │   └── 가수B.txt 
 │
-└── database/              # [자동 생성] 작업 진행 및 최종 결과물 폴더
-    ├── 가수A/             # 아티스트별 임시 파일 및 최종 지문(.pt) 저장 공간
-    ├── vocal_clustermap.png    # [최종 결과물] 유사도 히트맵 이미지
-    └── vocal_similarities.txt  # [최종 결과물] 수치형 텍스트 매트릭스
-
+├── database/              # [자동 생성] 작업 진행 및 최종 결과물 폴더
+│   ├── 가수A/             # 아티스트별 임시 파일 및 최종 지문(.pt) 저장 공간
+│   ├── vocal_clustermap.png    # [최종 결과물] 유사도 히트맵 이미지
+│   └── vocal_similarities.txt  # [최종 결과물] 수치형 텍스트 매트릭스
+│
+└── tests/                 # 단위 및 통합 테스트 코드
+    ├── test_utils.py
+    ├── test_models.py
+    ├── test_processing.py
+    └── test_visualization.py
 ```
 
 ---
 
 ## ⚙️ 상세 설정 및 튜닝 (Configuration)
 
-`pipeline.py` 상단에 분리된 하이퍼파라미터 설정값을 수정하여 환경에 맞게 튜닝할 수 있습니다.
+`config.py` 파일의 상단에 정의된 하이퍼파라미터 설정값을 수정하여 환경에 맞게 튜닝할 수 있습니다.
 
 | 변수명 | 기본값 | 설명 및 튜닝 가이드 |
 | --- | --- | --- |
@@ -111,14 +140,13 @@ vocal-similarity/
 
 ## ❓ 트러블슈팅 및 FAQ (Troubleshooting)
 
-* **Q. `FFmpegExtractAudioError` 관련 에러가 발생해요.**
-* 시스템(OS)에 FFmpeg가 설치되지 않았거나 환경 변수에 등록되지 않아서 발생합니다. FFmpeg를 설치하고 `PATH`에 등록한 뒤 시스템(터미널)을 재시작해 주세요.
+*   **Q. `FFmpegExtractAudioError` 관련 에러가 발생해요.**
+*   시스템(OS)에 FFmpeg가 설치되지 않았거나 환경 변수에 등록되지 않아서 발생합니다. FFmpeg를 설치하고 `PATH`에 등록한 뒤 시스템(터미널)을 재시작해 주세요.
 
 
-* **Q. 진행 중 `CUDA out of memory` 에러가 납니다.**
-* GPU의 VRAM이 부족하여 발생합니다. `pipeline.py` 상단의 `CHUNK_SEC` 값을 `5`에서 `3` 또는 `2`로 줄여서 다시 실행해 보세요. 진행된 내역은 자동 저장되므로 재실행 시 멈춘 부분부터 이어서 진행됩니다.
+*   **Q. 진행 중 `CUDA out of memory` 에러가 납니다.**
+*   `config.py` 파일의 `CHUNK_SEC` 값을 `5`에서 `3` 또는 `2`로 줄여서 다시 실행해 보세요. 진행된 내역은 자동 저장되므로 재실행 시 멈춘 부분부터 이어서 진행됩니다.
 
 
-* **Q. 중간에 유튜브 링크를 추가/수정하고 싶어요.**
-* 언제든 `inputs/*.txt` 파일을 수정하셔도 됩니다. 파이프라인을 재실행하면, 기존에 추출이 완료된(최종 `.pt` 파일이 존재하는) 영상은 자동으로 `[Skip]` 처리되고 새로 추가된 URL만 똑똑하게 추출 및 처리합니다.
-
+*   **Q. 중간에 유튜브 링크를 추가/수정하고 싶어요.**
+*   언제든 `inputs/*.txt` 파일을 수정하셔도 됩니다. 파이프라인을 재실행하면, 기존에 추출이 완료된(최종 `.pt` 파일이 존재하는) 영상은 자동으로 `[Skip]` 처리되고 새로 추가된 URL만 똑똑하게 추출 및 처리합니다.
