@@ -54,8 +54,7 @@ def generate_and_visualize_similarity():
     
     txt_path = os.path.join(config.DB_DIR, "vocal_similarities.txt")
     with open(txt_path, "w", encoding="utf-8") as f:
-        f.write("=== Vocal Similarity Matrix ===
-")
+        f.write("=== Vocal Similarity Matrix ===\n")
         f.write(df.to_string())
     log.info(f"  -> 텍스트 결과물 저장: {txt_path}")
 

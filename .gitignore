@@ -16,6 +16,14 @@ database/
 # Inputs (optional, depending on user preference)
 inputs/
 
+# Pre-trained models
+pretrained_models/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
 # Gemini CLI temporary directory
 .gemini/
 
