@@ -1,0 +1,14 @@
+# PyTorch & Torchaudio (CUDA 11.8 for RTX 3050 Optimization)
+torch==2.1.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+torchaudio==2.1.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+
+# Audio Extraction & Separation
+audio-separator[pt]>=0.17.0
+speechbrain>=1.0.0
+yt-dlp>=2023.11.16
+
+# Data Processing & Visualization
+seaborn>=0.13.0
+matplotlib>=3.8.0
+pandas>=2.1.0
+numpy<2.0.0
