@@ -1,4 +1,6 @@
-name: CI Pipeline
+# CI/CD Pipeline for the Advanced Vocal Similarity Project
+
+name: Python CI
 
 on:
   push:
@@ -7,32 +9,70 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    # Run weekly to catch any dependency-related issues
+    - cron: '0 0 * * 1'
 
 jobs:
-  build:
+  test-and-lint:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        # Test against multiple Python versions for broader compatibility
+        python-version: ['3.9', '3.10', '3.11']
+
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        # Create a new cache if requirements files change
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install PyTorch (CPU version for CI)
-      # PyTorch와 torchaudio는 특정 CUDA 버전에 종속될 수 있으므로, CI에서는 CPU 버전을 명시적으로 설치합니다.
-      # requirements.txt에 명시된 버전을 사용합니다.
-      run: pip install torch==2.1.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cpu
+      # Install the appropriate CPU version of PyTorch first to ensure compatibility in the CI environment.
+      run: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-    - name: Install other dependencies
-      # torch와 torchaudio를 제외한 나머지 필수 의존성을 설치합니다.
-      # --no-deps 옵션으로 이미 설치된 torch/torchaudio를 다시 설치하지 않도록 합니다.
-      run: pip install -r requirements.txt --no-deps
+    - name: Install project dependencies
+      run: |
+        pip install -r requirements.txt --no-deps
+        pip install -r requirements-dev.txt
 
-    - name: Install development dependencies
-      run: pip install -r requirements-dev.txt
+    - name: Lint with Ruff
+      # Check code for style and quality issues
+      run: ruff check .
 
-    - name: Run tests
+    - name: Run tests with pytest
       run: python -m pytest tests/
+
+  security-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: python
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
