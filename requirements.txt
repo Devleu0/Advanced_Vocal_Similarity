@@ -4,8 +4,8 @@ torchaudio>=2.1.2
 
 # Audio Extraction & Separation
 # Pin audio-separator to the minimum allowed version as a last attempt to find a stable dependency set.
-audio-separator[pt]==0.17.0
-onnxruntime
+demucs
+ml_dtypes>=0.4.0
 speechbrain>=1.0.0
 yt-dlp>=2023.11.16
 

@@ -18,7 +18,6 @@ EMB_TOP_K_RATIO = 0.8     # 아웃라이어 제거 시 상위 % 유지 비율
 
 # === [ Model Sources ] ===
 SPEECHBRAIN_MODEL_SOURCE = "speechbrain/spkrec-ecapa-voxceleb"
-AUDIO_SEPARATOR_MODEL = 'UVR-MDX-NET-Inst_HQ_3.onnx'
 
 # === [ Directory Setup ] ===
 os.makedirs(INPUT_DIR, exist_ok=True)

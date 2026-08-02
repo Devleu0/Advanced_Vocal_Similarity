@@ -1,10 +1,8 @@
 import os
 import glob
-import os
-import glob
 import config
 from utils import setup_korean_font
-from models import load_speech_brain_model, load_audio_separator_model
+from models import load_speech_brain_model
 from processing import process_url
 from visualization import generate_and_visualize_similarity
 from logger import log
@@ -22,7 +20,6 @@ def main():
 
     # 2. 모델 로드
     classifier = load_speech_brain_model()
-    separator = load_audio_separator_model()
 
     # 3. 입력 파일 처리
     txt_files = glob.glob(os.path.join(config.INPUT_DIR, "*.txt"))
@@ -39,7 +36,7 @@ def main():
 
         for idx, url in enumerate(urls, 1):
             log.info(f"  [{idx}/{len(urls)}] Processing: {url}")
-            process_url(url, artist_name, separator, classifier)
+            process_url(url, artist_name, classifier)
 
     # 4. 최종 분석 및 시각화
     generate_and_visualize_similarity()
@@ -49,4 +46,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-    main()

@@ -6,7 +6,18 @@ import config
 from utils import extract_video_id
 from logger import log
 
-def process_url(url, artist_name, separator, classifier):
+import os
+import torch
+import torchaudio
+import yt_dlp
+import config
+from utils import extract_video_id
+from logger import log
+from demucs.separate import main as demucs_main
+import shutil
+from pathlib import Path
+
+def process_url(url, artist_name, classifier):
     vid = extract_video_id(url)
     if not vid:
         log.error(f"  [오류] 올바르지 않은 유튜브 URL 형식입니다: {url}")
@@ -46,20 +57,43 @@ def process_url(url, artist_name, separator, classifier):
             log.info(f"  [Step 1 Skip] 원본 오디오가 이미 존재합니다. (URL ID: {vid})")
 
         log.info(f"  [Step 2] 보컬 분리 중 (URL ID: {vid})")
-        separator.output_dir = artist_dir
-        separator.output_format = "MP3"
+        demucs_output_dir = os.path.join(artist_dir, "demucs_separated")
         try:
-            primary_out, secondary_out = separator.separate(raw_path)
-            for out_file in [primary_out, secondary_out]:
-                if "Vocals" in out_file or "vocals" in out_file.lower():
-                    os.rename(os.path.join(artist_dir, out_file), vocal_path)
-                else:
-                    os.remove(os.path.join(artist_dir, out_file))
+            # Note: demucs.separate.main is designed to be called from the command line.
+            # We are using it programmatically here. It expects a list of string arguments.
+            # We want to separate to vocals and other, and output as mp3.
+            demucs_main([
+                "--two-stems", "vocals",
+                "--out", demucs_output_dir,
+                "--mp3",
+                raw_path
+            ])
+            
+            # Find the separated vocal file. Default model is htdemucs.
+            # The output path will be something like:
+            # <demucs_output_dir>/htdemucs/raw_{vid}/vocals.mp3
+            raw_filename = Path(raw_path).stem
+            separated_vocal_file = Path(demucs_output_dir) / "htdemucs" / raw_filename / "vocals.mp3"
+
+            if separated_vocal_file.exists():
+                shutil.move(str(separated_vocal_file), vocal_path)
+                log.info(f"  -> 보컬 파일 저장 완료: {vocal_path}")
+            else:
+                raise FileNotFoundError("Demucs에 의해 생성된 보컬 파일을 찾을 수 없습니다.")
+
+            # Clean up
             if os.path.exists(raw_path):
                 os.remove(raw_path)
                 log.info(f"  -> 용량 확보: raw_{vid}.mp3 삭제 완료")
+            if os.path.exists(demucs_output_dir):
+                shutil.rmtree(demucs_output_dir)
+                log.info(f"  -> 임시 분리 폴더 삭제 완료")
+
         except Exception as e:
             log.error(f"  [오류] 음원 분리 실패 (URL ID: {vid}): {e}", exc_info=True)
+            # Clean up demucs dir on failure too
+            if os.path.exists(demucs_output_dir):
+                shutil.rmtree(demucs_output_dir)
             return
     else:
         log.info(f"  [Step 1-2 Skip] 분리된 보컬 오디오가 이미 존재합니다. (URL ID: {vid})")
