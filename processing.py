@@ -45,7 +45,7 @@ def download_original_audio(url, artist_name):
 
     try:
         yt_dlp_command = [
-            'yt-dlp', '-f', 'bestaudio/best',
+            'yt-dlp', '-f', config.DOWNLOAD_AUDIO_QUALITY,
             '-o', f"{temp_path_template}.%(ext)s", clean_url
         ]
         result = subprocess.run(yt_dlp_command, check=True, capture_output=True, text=True, encoding='utf-8', timeout=300)
@@ -90,7 +90,7 @@ def convert_to_mp3(temp_path, raw_path):
     try:
         ffmpeg_command = [
             'ffmpeg', '-y', '-i', temp_path,
-            '-vn', '-ab', '192k', '-ar', str(config.SR), '-ac', '1',
+            '-vn', '-ab', config.MP3_BITRATE, '-ar', str(config.SR), '-ac', '1',
             raw_path
         ]
         subprocess.run(ffmpeg_command, check=True, capture_output=True, text=True, encoding='utf-8', timeout=180)
@@ -190,7 +190,12 @@ def process_audio(raw_path, classifier, artist_name, url):
         if chunks and chunks[-1].shape[1] < config.SR * 1:
             chunks = chunks[:-1]
 
-        valid_chunks = [chunk for chunk in chunks if torch.sqrt(torch.mean(chunk ** 2)) >= config.VAD_RMS_THRESHOLD]
+        if config.USE_VAD:
+            valid_chunks = [chunk for chunk in chunks if torch.sqrt(torch.mean(chunk ** 2)) >= config.VAD_RMS_THRESHOLD]
+            log.info(f"  -> VAD 적용 후 청크 수: {len(chunks)} -> {len(valid_chunks)}")
+        else:
+            valid_chunks = chunks
+            log.info("  -> VAD 비활성화, 모든 청크 사용")
 
         if not valid_chunks:
             log.warning(f"  [주의] 유효한 오디오 구간이 없습니다 ({Path(vocal_path).name}).")
@@ -199,19 +204,24 @@ def process_audio(raw_path, classifier, artist_name, url):
         batch_chunks = torch.stack(valid_chunks).squeeze(1).to(config.DEVICE)
         
         with torch.no_grad():
-            embs = classifier.encode_batch(batch_chunks)
-            embs_tensor = embs.squeeze().cpu()
+            embs_tensor = classifier.encode_batch(batch_chunks).squeeze().cpu()
             if embs_tensor.dim() == 1:
                 embs_tensor = embs_tensor.unsqueeze(0)
 
-        mean_emb_temp = embs_tensor.mean(dim=0, keepdim=True)
-        sims = torch.nn.functional.cosine_similarity(embs_tensor, mean_emb_temp)
+        if config.USE_OUTLIER_REMOVAL:
+            mean_emb_temp = embs_tensor.mean(dim=0, keepdim=True)
+            sims = torch.nn.functional.cosine_similarity(embs_tensor, mean_emb_temp)
+            
+            k = max(1, int(config.EMB_TOP_K_RATIO * len(embs_tensor)))
+            top_indices = torch.topk(sims, k).indices
+            refined_embs = embs_tensor[top_indices]
+            
+            final_embedding = refined_embs.mean(dim=0)
+            log.info(f"  -> 이상치 제거 적용: 상위 {k}/{len(embs_tensor)}개 임베딩 사용")
+        else:
+            final_embedding = embs_tensor.mean(dim=0)
+            log.info(f"  -> 이상치 제거 비활성화: 전체 {len(embs_tensor)}개 임베딩 평균 사용")
         
-        k = max(1, int(config.EMB_TOP_K_RATIO * len(embs_tensor)))
-        top_indices = torch.topk(sims, k).indices
-        refined_embs = embs_tensor[top_indices]
-        
-        final_embedding = refined_embs.mean(dim=0)
         torch.save(final_embedding, emb_path)
         log.info(f"  -> 최종 지문 저장 완료: {Path(emb_path).name}")
 
