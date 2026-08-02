@@ -1,5 +1,6 @@
 @echo off
 setlocal
+pushd "%~dp0" REM Change current directory to the script's directory
 chcp 65001 >nul
 
 echo ==============================================
@@ -59,10 +60,12 @@ echo.
 echo ==============================================
 echo [*] Pipeline finished successfully.
 echo ==============================================
+popd REM Restore original directory
 pause
 exit /b 0
 
 :error_exit
 echo [!] The script encountered an error. Please review the message above.
+popd REM Restore original directory in case of error
 pause
 exit /b 1
