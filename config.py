@@ -27,6 +27,9 @@ EMB_TOP_K_RATIO = 0.8     # 아웃라이어 제거 시 상위 % 유지 비율 (U
 DOWNLOAD_AUDIO_QUALITY = "bestaudio/best" # yt-dlp 다운로드 품질. 'bestaudio/best' 또는 'worstaudio/worst'
 MP3_BITRATE = "192k"      # FFmpeg MP3 변환 비트레이트. 예: '128k', '192k', '256k'
 
+# Demucs 보컬 분리 모델 설정
+DEMUCS_MODEL = "mdx_extra" # 보컬 분리에 사용할 모델. 추천: htdemucs_ft, hdemucs_mmi, mdx_extra
+
 
 # === [ File Management ] ===
 CLEANUP_RAW_AUDIO = False # True로 설정 시, 처리 후 원본 raw_*.mp3 파일을 삭제합니다.

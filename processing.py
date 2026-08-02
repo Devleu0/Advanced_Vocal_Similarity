@@ -133,7 +133,16 @@ def process_audio(raw_path, classifier, artist_name, url):
         try:
             temp_raw_path = raw_path + ".tmp"
             shutil.copy2(raw_path, temp_raw_path)
-            demucs_args = ["--two-stems", "vocals", "--out", demucs_output_dir, "--mp3", temp_raw_path]
+            
+            # config.py에서 설정된 모델을 사용하도록 demucs 인수 수정
+            demucs_args = [
+                "-n", config.DEMUCS_MODEL,
+                "--two-stems", "vocals", 
+                "--out", demucs_output_dir, 
+                "--mp3", 
+                temp_raw_path
+            ]
+            log.info(f"  -> Demucs 모델: {config.DEMUCS_MODEL}")
             demucs_main(demucs_args)
 
             separated_vocal_file = next(Path(demucs_output_dir).rglob("vocals.mp3"), None)
