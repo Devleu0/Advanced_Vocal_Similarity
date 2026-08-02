@@ -50,7 +50,8 @@ echo.
 echo ==============================================
 echo [*] Starting the pipeline (main.py)...
 echo ==============================================
-call .\venv\Scripts\python main.py
+call .\venv\Scripts\activate
+call python main.py
 if %errorlevel% neq 0 (
     echo [!] An error occurred while running 'python main.py'.
     goto :error_exit

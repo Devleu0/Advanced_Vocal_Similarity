@@ -16,7 +16,7 @@ CHUNK_SEC = 5             # VRAM 최적화를 위한 5초 청킹
 
 # === [ Processing Options ] ===
 # VAD (Voice Activity Detection) 설정
-USE_VAD = True            # True일 경우, RMS 기반의 간단한 VAD를 사용하여 음성이 없는 청크를 제거합니다.
+USE_VAD = False          # True일 경우, RMS 기반의 간단한 VAD를 사용하여 음성이 없는 청크를 제거합니다.
 VAD_RMS_THRESHOLD = 0.01  # 무음 판단 임계값 (USE_VAD가 True일 때만 사용)
 
 # Outlier 제거 설정
