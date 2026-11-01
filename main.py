@@ -1,5 +1,6 @@
 import os
 import glob
+from concurrent.futures import ThreadPoolExecutor
 import config
 from utils import setup_korean_font
 from models import load_speech_brain_model
@@ -40,15 +41,16 @@ def main():
         log.warning("\n[!] 'inputs' 폴더의 .txt 파일 내에 처리할 URL이 없습니다.")
         return
 
-    # 4. 단계 1a: 모든 원본 오디오 일괄 다운로드 (yt-dlp)
+    # 4. 단계 1a: 모든 원본 오디오 일괄 다운로드 (yt-dlp, 병렬)
     log.info("\n" + "="*50)
     log.info(" STAGE 1a: BATCH ORIGINAL AUDIO DOWNLOAD (yt-dlp)")
     log.info("="*50)
-    for i, task in enumerate(tasks):
-        log.info(f"\n>> [{i+1}/{len(tasks)}] Artist: {task['artist_name']}")
-        temp_path, raw_path = download_original_audio(task['url'], task['artist_name'])
-        task['temp_path'] = temp_path
-        task['raw_path'] = raw_path
+
+    def _download(task):
+        task['temp_path'], task['raw_path'] = download_original_audio(task['url'], task['artist_name'])
+
+    with ThreadPoolExecutor(max_workers=config.DOWNLOAD_WORKERS) as pool:
+        list(pool.map(_download, tasks))
 
     # 5. 단계 1b: 모든 오디오 일괄 변환 (ffmpeg)
     log.info("\n" + "="*50)

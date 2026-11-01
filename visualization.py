@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import config
 from logger import log
-from similarity import build_master_profile, compute_similarity_matrix
+from similarity import build_master_profiles, compute_similarity_matrix
 
 def generate_and_visualize_similarity():
     """
@@ -18,21 +18,24 @@ def generate_and_visualize_similarity():
     log.info("="*50)
     
     artist_dirs = [d for d in glob.glob(os.path.join(config.DB_DIR, "*")) if os.path.isdir(d)]
-    master_profiles = {}
+    artist_embs = {}
 
     for adir in artist_dirs:
         artist_name = os.path.basename(adir)
         emb_files = glob.glob(os.path.join(adir, "emb_*.pt"))
         if not emb_files:
             continue
-        
+
         try:
-            embs = [torch.load(f, weights_only=True) for f in emb_files]
-            master_profiles[artist_name] = build_master_profile(embs)
+            artist_embs[artist_name] = [torch.load(f, weights_only=True) for f in emb_files]
         except Exception as e:
-            log.error(f"  [오류] '{artist_name}'의 프로필 생성 중 에러 발생: {e}", exc_info=True)
+            log.error(f"  [오류] '{artist_name}'의 임베딩 로드 중 에러 발생: {e}", exc_info=True)
             continue
-    
+
+    master_profiles = build_master_profiles(
+        artist_embs, center=config.USE_CENTERING, min_artists=config.CENTERING_MIN_ARTISTS
+    )
+
     if len(master_profiles) < 2:
         log.warning("[!] 비교할 가수가 2명 이상이어야 시각화가 가능합니다.")
         return
@@ -53,7 +56,7 @@ def generate_and_visualize_similarity():
         annot=True, 
         fmt=".2f", 
         cmap="mako", 
-        vmin=0.0, 
+        vmin=min(0.0, float(matrix.min())),
         vmax=1.0,
         figsize=(fig_size, fig_size)
     )
