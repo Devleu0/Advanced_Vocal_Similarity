@@ -14,6 +14,11 @@ def embedding_path(artist_dir, vid, model=LEGACY_MODEL):
     return os.path.join(artist_dir, name)
 
 
+def chunk_cache_path(artist_dir, vid, model=LEGACY_MODEL):
+    """집계 이전의 청크 임베딩 캐시 (emb_*.pt 패턴과 겹치지 않음)."""
+    return os.path.join(artist_dir, f"chunks_{model}_{vid}.pt")
+
+
 def list_embedding_files(artist_dir, model, all_models):
     """artist_dir 안에서 ``model`` 로 만든 임베딩 파일만 정렬해서 반환합니다."""
     others = [m for m in all_models if m != LEGACY_MODEL]
