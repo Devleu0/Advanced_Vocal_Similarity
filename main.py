@@ -1,27 +1,44 @@
+import argparse
 import os
 import glob
 from concurrent.futures import ThreadPoolExecutor
 import config
 from utils import setup_korean_font
-from models import load_speech_brain_model
+from models import EMBEDDING_MODELS, format_model_list, get_spec, load_embedding_model
 from processing import download_original_audio, convert_to_mp3, process_audio
 from visualization import generate_and_visualize_similarity
 from logger import log
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Advanced Vocal Similarity 파이프라인")
+    parser.add_argument("--model", choices=list(EMBEDDING_MODELS), default=None,
+                        help="임베딩 모델 (기본: config.EMBEDDING_MODEL)")
+    parser.add_argument("--list-models", action="store_true", help="선택 가능한 모델 목록 출력")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
     """
     전체 보컬 유사도 분석 파이프라인을 실행합니다.
     다운로드, 변환, 처리를 단계별로 분리하여 실행합니다.
     """
+    args = parse_args(argv)
+    if args.list_models:
+        print(format_model_list())
+        return
+    if args.model:
+        config.EMBEDDING_MODEL = args.model
+    get_spec()  # 잘못된 모델명을 모델 로딩 전에 검증
     # 1. 초기 설정
     log.info("="*50)
     log.info(" End-to-End Vocal Similarity Pipeline Started")
     log.info("="*50)
     log.info(f"[*] 사용할 디바이스: {config.DEVICE}")
+    log.info(f"[*] 임베딩 모델: {config.EMBEDDING_MODEL}")
     setup_korean_font()
 
     # 2. 모델 로드
-    classifier = load_speech_brain_model()
+    classifier = load_embedding_model()
 
     # 3. 모든 입력 파일에서 처리할 작업 목록 수집
     txt_files = glob.glob(os.path.join(config.INPUT_DIR, "*.txt"))

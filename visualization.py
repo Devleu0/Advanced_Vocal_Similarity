@@ -5,7 +5,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import config
+from embedding_store import list_embedding_files
 from logger import log
+from models import EMBEDDING_MODELS
 from similarity import build_master_profiles, compute_similarity_matrix
 
 def generate_and_visualize_similarity():
@@ -22,7 +24,7 @@ def generate_and_visualize_similarity():
 
     for adir in artist_dirs:
         artist_name = os.path.basename(adir)
-        emb_files = glob.glob(os.path.join(adir, "emb_*.pt"))
+        emb_files = list_embedding_files(adir, config.EMBEDDING_MODEL, EMBEDDING_MODELS)
         if not emb_files:
             continue
 

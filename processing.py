@@ -9,6 +9,7 @@ from fingerprint import (
     prepare_waveform, split_into_chunks, filter_silent_chunks,
     encode_chunks, aggregate_embeddings,
 )
+from embedding_store import embedding_path
 from logger import log
 from demucs.separate import main as demucs_main
 import shutil
@@ -123,7 +124,7 @@ def process_audio(raw_path, classifier, artist_name, url):
 
     artist_dir = os.path.join(config.DB_DIR, artist_name)
     vocal_path = os.path.join(artist_dir, f"vocal_{vid}.mp3")
-    emb_path = os.path.join(artist_dir, f"emb_{vid}.pt")
+    emb_path = embedding_path(artist_dir, vid, config.EMBEDDING_MODEL)
 
     if os.path.exists(emb_path):
         log.info(f"  [Process Skip] 이미 추출된 지문이 존재합니다: {Path(emb_path).name}")
@@ -225,3 +226,5 @@ def process_audio(raw_path, classifier, artist_name, url):
     finally:
         if str(config.DEVICE).startswith("cuda"):
             torch.cuda.empty_cache()
+""
+""},{"path":"x"}]}

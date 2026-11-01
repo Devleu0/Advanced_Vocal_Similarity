@@ -43,7 +43,11 @@ DEMUCS_MODEL = "mdx_extra" # 보컬 분리에 사용할 모델. 추천: htdemucs
 DOWNLOAD_WORKERS = 4      # 동시 다운로드 수
 CLEANUP_RAW_AUDIO = False # True로 설정 시, 처리 후 원본 raw_*.mp3 파일을 삭제합니다.
 
-# === [ Model Sources ] ===
+# === [ Embedding Model ] ===
+# 선택 가능: "ecapa"(기본) | "wavlm-sv"(추천) | "resnet"   (설명: python main.py --list-models)
+# 환경변수 VOCAL_EMBEDDING_MODEL 또는 `python main.py --model <key>` 로도 지정할 수 있습니다.
+# 모델마다 임베딩 공간이 달라 파일이 따로 저장되며, 서로 섞어 비교하지 않습니다.
+EMBEDDING_MODEL = os.environ.get("VOCAL_EMBEDDING_MODEL", "ecapa")
 SPEECHBRAIN_MODEL_SOURCE = "speechbrain/spkrec-ecapa-voxceleb"
 
 # === [ Directory Setup ] ===
