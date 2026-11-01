@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Callable, Iterable, List, Optional
 
 from . import config
@@ -105,5 +106,10 @@ def run_pipeline(tasks: List[Task], classifier,
         raise PipelineCancelled()
     _banner("STAGE 3: FINAL ANALYSIS & VISUALIZATION")
     report(STAGE_ANALYZE, 0, 1)
-    generate_and_visualize_similarity()
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    run_dir = os.path.join(config.DB_DIR, "runs", run_id)
+    os.makedirs(os.path.dirname(run_dir), exist_ok=True)
+    os.makedirs(run_dir, exist_ok=False)
+    log.info(f"  -> 실행 결과 저장 경로: {run_dir}")
+    generate_and_visualize_similarity(output_dir=run_dir)
     report(STAGE_ANALYZE, 1, 1)

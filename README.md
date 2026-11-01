@@ -1,209 +1,156 @@
-# Advanced Vocal Similarity (음성 유사도 분석)
+# Advanced Vocal Similarity
+
+[English](README.en.md) | 한국어
 
 [![Python CI](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml/badge.svg)](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml)
 
-**Advanced Vocal Similarity**는 여러 유튜브 영상에 등장하는 인물들의 목소리를 분석하여 서로 얼마나 유사한지 측정하고 시각화하는 파이프라인입니다. 딥러닝 기반의 음성 분석 모델을 사용하여 각 영상의 오디오에서 보컬 "지문(fingerprint)"을 추출하고, 이를 상호 비교하여 유사도 점수를 계산합니다.
+미디어 URL에서 음성을 추출해 아티스트별 음성 지문을 만들고, 아티스트 간 보컬 음색 유사도를 비교하는 도구입니다. URL을 아티스트별 텍스트 파일에 여러 줄로 등록하면 `yt-dlp`로 오디오를 가져오고, 보컬 분리와 임베딩 추출을 거쳐 유사도 행렬과 보고서를 생성합니다.
+
+> **주의:** URL은 yt-dlp가 지원하는 사이트의 HTTP(S) 주소여야 합니다. 사이트 지원 여부, 로그인·연령 제한, 지역 제한, 네트워크 상태 등에 따라 다운로드되지 않을 수 있습니다. 본인이 접근 및 분석할 권리가 있는 미디어만 사용하세요.
 
 ## 주요 기능
 
-- **유튜브 영상 지원**: 유튜브 URL만 제공하면 자동으로 오디오를 다운로드합니다.
-- **자동 보컬 분리**: Demucs 모델을 사용하여 배경 음악이나 잡음에서 보컬 목소리만 정확하게 분리합니다.
-- **음성 지문 추출**: 최신 음성 인식 모델(ECAPA-TDNN)을 통해 각 보컬의 고유한 특징을 벡터(Embedding)로 추출합니다.
-- **유사도 분석 및 시각화**: 추출된 모든 음성 지문을 상호 비교하여 코사인 유사도를 계산하고, 결과를 히트맵으로 시각화하여 한눈에 파악할 수 있도록 돕습니다.
-- **웹 UI**: 브라우저에서 아티스트/URL 등록, 분석 실행·진행률·로그 확인, 유사도 히트맵·클러스터맵 조회까지 할 수 있습니다. ([웹 UI 사용법](#-웹-ui))
-- **설정 유연성**: `vocal_similarity/config.py` 파일을 통해 VAD(음성 감지), 이상치 제거, 오디오 품질 등 다양한 처리 옵션을 쉽게 조정할 수 있습니다.
+- 아티스트별 여러 미디어 URL을 한 번에 등록하고 처리
+- Demucs로 보컬을 분리하고 SpeechBrain ECAPA-TDNN으로 음성 임베딩 추출
+- 코사인 유사도 행렬, 클러스터맵, 상위 유사도 10쌍 TXT/CSV 보고서 생성
+- CLI 또는 웹 UI로 실행하고, 실행별 결과를 다시 조회
+- 웹 UI에서 아티스트·URL별 진행 상태, 작업 로그, 실패 로그 복사, 행렬 확대/축소 및 강조 표시
+- 웹 UI 표시 언어를 한국어 또는 영어로 선택
 
-## 작동 방식 (Pipeline)
+## 웹 UI 미리보기
 
-프로젝트는 다음 4단계의 자동화된 파이프라인으로 구성됩니다.
+아래 이미지는 문서용 합성 데이터(`Artist A` 등)로 만든 화면입니다. 실제 아티스트명이나 사용자 URL은 포함하지 않습니다.
 
-1.  **입력 (Input)**: `inputs` 폴더에 `아티스트명.txt` 파일을 생성하고, 그 안에 분석할 유튜브 영상 URL 목록을 넣습니다.
-2.  **다운로드 및 변환 (Download & Convert)**: `yt-dlp`와 `ffmpeg`을 사용하여 각 URL에서 오디오를 다운로드하고, 표준 형식(MP3, 16kHz, mono)으로 변환합니다.
-3.  **처리 (Processing)**:
-    - **보컬 분리**: `demucs`를 이용해 오디오에서 보컬 트랙을 분리합니다.
-    - **지문 추출**: 분리된 보컬 트랙을 작은 조각(chunk)으로 나누고, `SpeechBrain` 모델로 각 조각의 임베딩을 추출한 뒤, 평균을 내어 해당 영상의 최종 음성 지문을 생성합니다.
-4.  **분석 및 시각화 (Analysis & Visualization)**: 모든 음성 지문 간의 코사인 유사도를 계산하고, `seaborn`과 `matplotlib`을 사용해 결과를 히트맵(`database/vocal_clustermap.png`)으로 저장합니다.
+![익명 샘플 데이터가 표시된 한국어 웹 UI](docs/images/web-ui-ko.png)
 
-## 📂 프로젝트 구조
+## 요구 사항
 
-모듈 책임과 협업 가이드는 [ARCHITECTURE.md](ARCHITECTURE.md) 를 참고하세요.
-
-```
-.
-├── inputs/            # 분석할 유튜브 URL 목록 (txt 파일)을 이곳에 추가
-│   └── artist_A.txt
-├── database/          # 처리 과정에서 생성된 파일들이 저장되는 공간
-│   ├── artist_A/
-│   │   ├── raw_{vid}.mp3       # 원본 오디오
-│   │   ├── vocal_{vid}.mp3     # 분리된 보컬
-│   │   └── emb_{vid}.pt        # 추출된 음성 지문 (임베딩)
-│   ├── vocal_similarities.txt  # 유사도 행렬 (텍스트)
-│   └── vocal_clustermap.png    # 최종 결과물 (클러스터맵)
-├── main.py            # 기존 CLI 실행 진입점 (python main.py)
-├── web.py             # 기존 웹 UI 실행 진입점 (python web.py)
-├── vocal_similarity/  # 애플리케이션 Python 패키지
-│   ├── config.py      # 프로젝트 설정
-│   ├── main.py        # CLI 실행 로직
-│   ├── pipeline.py    # 단계 오케스트레이션 (CLI·웹 공용, 진행 콜백/취소 지원)
-│   ├── input_store.py # inputs/<아티스트>.txt 읽기·쓰기·이름 검증
-│   ├── processing.py  # 다운로드/변환/보컬 분리 (I/O 오케스트레이션)
-│   ├── fingerprint.py # 청킹·VAD·임베딩 집계 등 순수 함수 (테스트 용이)
-│   ├── similarity.py  # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
-│   ├── visualization.py # 임베딩 로드 및 히트맵·텍스트 출력
-│   ├── models.py      # SpeechBrain 모델 로더
-│   ├── utils.py       # 한글 폰트 설정, 비디오 ID 추출
-│   ├── logger.py      # 로깅 설정
-│   └── webapp/        # FastAPI 웹 UI 및 정적 프런트엔드
-│       ├── routers/   # HTTP 엔드포인트 (artists / jobs / results)
-│       ├── services/  # 도메인 로직 (입력 관리, 작업, 결과 조회)
-│       └── static/    # HTML/CSS/ES 모듈 (빌드 단계 없음)
-├── tests/             # pytest 단위 테스트 (tests/web: 웹 계층)
-├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트 (CLI)
-├── run_web.bat        # Windows 용 웹 UI 실행 스크립트
-├── requirements.txt   # 필요한 Python 라이브러리 목록
-└── requirements-web.txt # 웹 UI 추가 의존성 (fastapi, uvicorn)
-```
+- Python 3.11 이상
+- FFmpeg 설치 및 PATH 등록
+- Node.js 22 이상 (현재 다운로드 명령에서 JavaScript 챌린지 처리에 사용)
+- PyTorch 실행 환경. CUDA를 사용하려면 PyTorch 공식 설치 안내에 따라 호환되는 버전을 설치하세요.
 
 ## 설치
 
-### 필수 요구사항
+### Windows 빠른 시작
 
-- **Python 3.9 이상**
-- **FFmpeg**: 시스템 PATH에 등록되어 있어야 합니다.
-- **yt-dlp**: 시스템 PATH에 등록되어 있어야 합니다.
+`run_web.bat`은 웹 UI를, `run.bat`은 CLI 파이프라인을 시작합니다. 최초 실행 시 가상환경과 의존성을 설치합니다.
 
-### 설치 과정
-
-#### Windows 사용자
-
-프로젝트에 포함된 `run.bat` 스크립트를 실행하면 가상 환경 생성, 라이브러리 설치, 파이프라인 실행까지 모든 과정이 자동으로 진행됩니다.
-
-```bash
-run.bat
+```bat
+run_web.bat
 ```
 
-#### macOS / Linux 사용자
+웹 UI는 기본적으로 `http://localhost:8000`에서 열립니다. CLI를 실행하려면 `run.bat`을 사용하세요.
 
-수동으로 가상 환경을 설정하고 필요한 라이브러리를 설치해야 합니다.
+### 수동 설치 (Windows, macOS, Linux)
 
 ```bash
-# 1. Git 저장소를 복제합니다.
 git clone https://github.com/Devleu0/Advanced_Vocal_Similarity.git
 cd Advanced_Vocal_Similarity
-
-# 2. Python 가상 환경을 생성하고 활성화합니다.
-python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate   # Windows
-
-# 3. PyTorch를 먼저 설치합니다. (CPU 버전 기준)
-# CUDA 지원 GPU가 있다면 공식 홈페이지(https://pytorch.org/)를 참고하여 GPU 버전을 설치하세요.
-pip install torch torchaudio
-
-# 4. 나머지 라이브러리를 설치합니다.
-pip install -r requirements.txt
+python -m venv venv
 ```
 
-## 사용법
-
-1.  `inputs` 폴더 안에 `아티스트명.txt` 형식의 텍스트 파일을 생성합니다. (예: `iu.txt`)
-2.  해당 파일 안에 분석하고 싶은 유튜브 영상의 URL을 한 줄에 하나씩 추가합니다.
-3.  `run.bat`를 실행하거나, 터미널에서 `python main.py` 명령을 실행합니다.
-4.  처리가 완료되면 `database/vocal_clustermap.png` 와 `database/vocal_similarities.txt` 가 생성됩니다.
-
-## 🌐 웹 UI
-
-터미널 대신 브라우저에서 전체 파이프라인을 사용할 수 있습니다.
+가상환경을 만든 뒤 운영체제에 맞게 활성화합니다.
 
 ```bash
-pip install -r requirements-web.txt   # 최초 1회 (requirements.txt 설치 후)
-python web.py                         # http://localhost:8000
-# 다른 PC 에서 접속하려면: python web.py --host 0.0.0.0 --port 8000
+# Windows PowerShell
+.\venv\Scripts\Activate.ps1
 ```
 
-Windows 에서는 `run_web.bat` 을 실행하면 설치 → 서버 실행 → 브라우저 열기까지 자동으로 진행됩니다.
+```bash
+# macOS/Linux
+source venv/bin/activate
+```
 
-| 패널 | 기능 |
-| --- | --- |
-| **1. 아티스트 & URL** | 아티스트 추가/수정/삭제 (`inputs/<이름>.txt` 와 동일), URL 별 처리 상태(대기 → 다운로드됨 → 보컬 분리됨 → 지문 완료) 표시 |
-| **2. 분석 실행** | 선택한 아티스트(또는 전체) 분석 시작, 단계별 진행률·실시간 로그, 취소 |
-| **3. 유사도 결과** | 아티스트 간 유사도 히트맵 표, 클러스터맵 이미지, CSV 다운로드 |
+그다음 PyTorch를 먼저 설치하고 프로젝트 의존성을 설치합니다.
 
-- 웹 UI 와 CLI(`python main.py`)는 같은 `inputs/`, `database/` 폴더와 같은 파이프라인 코드(`pipeline.py`)를 사용하므로 섞어서 사용해도 됩니다.
-- 분석 작업은 GPU·파일을 공유하므로 **동시에 하나만** 실행됩니다. SpeechBrain 모델은 첫 작업에서 한 번만 로드되어 이후 작업에서 재사용됩니다.
-- API 문서(Swagger)는 `http://localhost:8000/docs` 에서 볼 수 있습니다.
+```bash
+python -m pip install torch torchaudio
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-web.txt  # 웹 UI를 사용할 경우
+```
 
-| Method | Path | 설명 |
+GPU를 사용하지 않거나 CUDA 설정이 필요한 경우, 먼저 [PyTorch 설치 안내](https://pytorch.org/get-started/locally/)에서 환경에 맞는 설치 명령을 확인하세요.
+
+## 입력 및 실행
+
+`inputs/`에 아티스트 이름으로 `.txt` 파일을 만들고, 분석할 URL을 한 줄에 하나씩 입력합니다. 파일당 여러 URL을 등록할 수 있습니다.
+
+```text
+inputs/
+├── Artist A.txt
+└── Artist B.txt
+```
+
+예시 파일 내용:
+
+```text
+https://media.example.com/track/one
+https://media.example.com/track/two
+```
+
+URL이 일반적인 HTTP(S) 주소인지 검증한 다음 yt-dlp에 전달합니다. 검증 통과는 사이트가 지원된다는 뜻이 아니며, 최종 지원 여부는 yt-dlp가 판단합니다.
+
+### CLI
+
+```bash
+python main.py
+```
+
+Windows에서는 `run.bat`을 실행할 수 있습니다.
+
+### 웹 UI
+
+```bash
+python -m pip install -r requirements-web.txt
+python web.py
+```
+
+브라우저에서 `http://localhost:8000`을 엽니다. 다른 기기에서 접근하려면 다음처럼 실행할 수 있지만, 웹 UI에는 인증 기능이 없으므로 신뢰할 수 있는 네트워크에서만 사용하세요.
+
+```bash
+python web.py --host 0.0.0.0 --port 8000
+```
+
+웹 UI의 언어 선택은 브라우저에 저장되며, 첫 방문에는 브라우저 언어를 기준으로 선택합니다.
+
+## 결과 및 데이터 보관
+
+- URL 입력은 `inputs/<아티스트명>.txt`에 저장됩니다.
+- 다운로드 오디오, 분리 보컬, 임베딩은 `database/<아티스트명>/`에 저장되고 이후 실행에서 재사용됩니다.
+- 각 분석 실행의 행렬, 클러스터맵 및 상위 10쌍 TXT/CSV 보고서는 고유 실행 ID를 사용해 `database/runs/<실행 ID>/`에 보관됩니다.
+- `database/` 루트의 결과 파일은 가장 최근 분석 결과를 빠르게 확인할 수 있도록 갱신됩니다. 과거 실행별 결과는 `runs/`에서 유지됩니다.
+- 웹 UI에서 실행을 선택하고 행렬을 확대/축소하거나 아티스트·셀을 클릭해 관련 행과 열을 강조할 수 있습니다.
+
+## 설정
+
+`vocal_similarity/config.py`에서 주요 처리 설정을 변경할 수 있습니다.
+
+| 설정 | 설명 | 기본값 |
 | --- | --- | --- |
-| `GET` | `/api/artists` | 아티스트 목록 + URL 별 처리 상태 |
-| `PUT` | `/api/artists/{name}` | 아티스트 생성/URL 목록 덮어쓰기 (`{"urls": [...]}`) |
-| `DELETE` | `/api/artists/{name}?purge=true` | 삭제 (`purge` 시 `database/<이름>` 도 삭제) |
-| `POST` | `/api/jobs` | 분석 시작 (`{"artists": [...]}`, 생략 시 전체). 실행 중이면 409 |
-| `GET` | `/api/jobs/{id}?log_offset=N` | 진행 상태 + N번째 줄 이후 로그 |
-| `POST` | `/api/jobs/{id}/cancel` | 취소 (처리 중인 URL 완료 후 중단) |
-| `GET` | `/api/results/similarity` | 유사도 행렬 JSON (`.csv` 도 지원) |
-| `GET` | `/api/results/clustermap.png` | 마지막 실행에서 생성된 클러스터맵 |
-
-> ⚠️ 웹 UI 에는 인증 기능이 없습니다. `--host 0.0.0.0` 으로 외부에 공개할 때는 신뢰할 수 있는 네트워크에서만 사용하세요.
-
-## 설정 (Configuration)
-
-`vocal_similarity/config.py` 파일에서 파이프라인의 세부 동작을 조정할 수 있습니다.
-
-| 설정 항목                 | 설명                                                                                                | 기본값                  |
-| ------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
-| `DEVICE`                  | 모델 연산에 사용할 장치 (`"cuda:0"` 또는 `"cpu"`)                                                     | 자동 감지               |
-| `SR`                      | 오디오 처리 시 사용할 샘플 레이트 (Sample Rate)                                                       | `16000`                 |
-| `CHUNK_SEC`               | 음성 지문 추출 시 오디오를 나눌 조각(chunk)의 길이 (초)                                               | `5`                     |
-| `USE_VAD`                 | 음성이 없는 부분을 제거하는 VAD(Voice Activity Detection) 기술 사용 여부                              | `True`                  |
-| `VAD_RMS_THRESHOLD`       | VAD에서 무음으로 판단할 RMS 임계값                                                                    | `0.01`                  |
-| `USE_OUTLIER_REMOVAL`     | 평균에서 크게 벗어나는 이상치(outlier) 임베딩을 제거할지 여부                                         | `True`                  |
-| `EMB_TOP_K_RATIO`         | 이상치 제거 시, 평균과 가장 유사한 상위 몇 %의 임베딩을 사용할지 결정                                 | `0.8` (상위 80%)        |
-| `DOWNLOAD_AUDIO_QUALITY`  | `yt-dlp`로 다운로드할 오디오의 품질                                                                   | `"bestaudio/best"`      |
-| `MP3_BITRATE`             | `ffmpeg`으로 변환할 MP3 파일의 비트레이트                                                             | `"192k"`                |
-| `DEMUCS_MODEL`            | 보컬 분리에 사용할 Demucs 모델. (`htdemucs_ft`, `mdx_extra` 등)                                        | `"mdx_extra"`           |
-| `CLEANUP_RAW_AUDIO`       | 처리 완료 후 변환된 원본 오디오(`raw_*.mp3`)를 삭제할지 여부                                          | `False`                 |
+| `DEVICE` | 모델 실행 장치 | CUDA 사용 가능 시 `cuda:0`, 아니면 `cpu` |
+| `SR` / `CHUNK_SEC` | 오디오 샘플 레이트 / 지문 추출 청크 길이 | `16000` / `5`초 |
+| `USE_VAD` | 무음 청크 제거 사용 여부 | `False` |
+| `USE_OUTLIER_REMOVAL` / `EMB_TOP_K_RATIO` | 임베딩 이상치 제거 및 유지 비율 | `True` / `0.8` |
+| `DOWNLOAD_AUDIO_QUALITY` | yt-dlp 오디오 포맷 선택 | `bestaudio/best` |
+| `MP3_BITRATE` | 표준 오디오 변환 비트레이트 | `192k` |
+| `DEMUCS_MODEL` | 보컬 분리 모델 | `mdx_extra` |
+| `CLEANUP_RAW_AUDIO` | 변환 후 원본 MP3 삭제 여부 | `False` |
 
 ## 개발 및 테스트
 
-이 프로젝트에 기여하고 싶은 개발자는 다음 가이드를 참고하세요.
-
-### 개발 환경 설정
-
-`requirements-dev.txt` 파일에는 `ruff` (린터), `pytest` (테스터) 등 개발에 필요한 도구가 포함되어 있습니다.
-
 ```bash
-# 개발용 라이브러리 설치
-pip install -r requirements-web.txt -r requirements-dev.txt
-```
-
-### 코드 스타일 검사 (Linting)
-
-```bash
+python -m pip install -r requirements.txt -r requirements-web.txt -r requirements-dev.txt
+python -m pytest tests/
 ruff check .
 ```
 
-### 테스트 실행
-
-```bash
-python -m pytest tests/
-```
-
-- 알고리즘 로직(`vocal_similarity/fingerprint.py`, `vocal_similarity/similarity.py`)은 합성 텐서로 테스트합니다.
-- `vocal_similarity/pipeline.py` 테스트는 각 단계를 mock 하여 실행 순서·진행 콜백·취소만 검증합니다.
-- `tests/web/` 은 가짜 runner 를 주입한 `create_app(runner=...)` 으로 HTTP API 와 작업 상태 전이를 검증합니다 (모델·demucs 불필요).
-- `vocal_similarity/processing.py` 테스트는 `subprocess`/`torchaudio` 를 mock 하며, demucs 가 없어도 `tests/conftest.py` 의 스텁으로 실행됩니다.
+웹 UI API 문서는 서버 실행 후 `http://localhost:8000/docs`에서 확인할 수 있습니다.
 
 ## 라이선스
 
-이 프로젝트는 [MIT License](LICENSE)에 따라 배포됩니다.
+[MIT License](LICENSE)
 
-## 감사의 말
+## 주요 오픈소스
 
-이 프로젝트는 다음과 같은 훌륭한 오픈소스 라이브러리들 덕분에 가능했습니다.
-
-- [PyTorch](https://pytorch.org/)
-- [SpeechBrain](https://speechbrain.github.io/)
-- [Demucs](https://github.com/facebookresearch/demucs)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- [FFmpeg](https://ffmpeg.org/)
+[PyTorch](https://pytorch.org/) · [SpeechBrain](https://speechbrain.github.io/) · [Demucs](https://github.com/facebookresearch/demucs) · [yt-dlp](https://github.com/yt-dlp/yt-dlp) · [FFmpeg](https://ffmpeg.org/)

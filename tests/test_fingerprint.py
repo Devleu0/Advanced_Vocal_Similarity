@@ -25,7 +25,19 @@ def test_split_drops_short_tail():
 
 def test_split_keeps_long_tail():
     wav = torch.ones(1, 16000 * 5 + 32000)  # 꼬리 2s 유지
-    assert len(fp.split_into_chunks(wav, 16000, 5)) == 2
+    chunks = fp.split_into_chunks(wav, 16000, 5)
+    assert len(chunks) == 2
+    assert all(chunk.shape == (1, 16000 * 5) for chunk in chunks)
+
+
+def test_split_pads_kept_short_tail():
+    wav = torch.ones(1, 16000 * 5 + 16000 * 3 + 671)
+
+    chunks = fp.split_into_chunks(wav, 16000, 5)
+
+    assert len(chunks) == 2
+    assert all(chunk.shape == (1, 16000 * 5) for chunk in chunks)
+    assert torch.count_nonzero(chunks[-1][:, 16000 * 3 + 671:]) == 0
 
 
 def test_filter_silent_chunks():

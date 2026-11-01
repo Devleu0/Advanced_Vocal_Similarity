@@ -4,8 +4,9 @@ from vocal_similarity import input_store, pipeline
 
 
 @pytest.fixture
-def steps(mocker):
+def steps(mocker, tmp_path):
     """processing / visualization 단계를 mock 하여 오케스트레이션만 검증합니다."""
+    mocker.patch("vocal_similarity.pipeline.config.DB_DIR", str(tmp_path))
     return {
         "download": mocker.patch("vocal_similarity.pipeline.download_original_audio", return_value=("tmp.webm", "raw.mp3")),
         "convert": mocker.patch("vocal_similarity.pipeline.convert_to_mp3", return_value="raw.mp3"),
@@ -34,6 +35,9 @@ def test_run_pipeline_runs_all_stages_and_reports_progress(steps):
     assert steps["process"].call_count == 2
     steps["process"].assert_any_call("raw.mp3", "clf", "A", "u1")
     steps["analyze"].assert_called_once()
+    run_dir = steps["analyze"].call_args.kwargs["output_dir"]
+    assert pipeline.os.path.basename(pipeline.os.path.dirname(run_dir)) == "runs"
+    assert pipeline.os.path.isdir(run_dir)
     assert events[0] == ("download", 0, 2)
     assert ("process", 2, 2) in events
     assert events[-1] == ("analyze", 1, 1)

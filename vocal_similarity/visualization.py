@@ -1,5 +1,7 @@
 import glob
+import json
 import os
+import shutil
 from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
@@ -13,6 +15,9 @@ from .similarity import build_master_profile, compute_similarity_matrix
 
 SIMILARITY_TXT_NAME = "vocal_similarities.txt"
 CLUSTERMAP_PNG_NAME = "vocal_clustermap.png"
+TOP_PAIRS_TXT_NAME = "top_similar_pairs.txt"
+TOP_PAIRS_CSV_NAME = "top_similar_pairs.csv"
+SIMILARITY_JSON_NAME = "similarity.json"
 
 
 def similarity_txt_path(db_dir: Optional[str] = None) -> str:
@@ -21,6 +26,15 @@ def similarity_txt_path(db_dir: Optional[str] = None) -> str:
 
 def clustermap_path(db_dir: Optional[str] = None) -> str:
     return os.path.join(db_dir or config.DB_DIR, CLUSTERMAP_PNG_NAME)
+
+
+def top_pairs_path(db_dir: Optional[str] = None, extension: str = "txt") -> str:
+    name = TOP_PAIRS_CSV_NAME if extension == "csv" else TOP_PAIRS_TXT_NAME
+    return os.path.join(db_dir or config.DB_DIR, name)
+
+
+def similarity_json_path(db_dir: str) -> str:
+    return os.path.join(db_dir, SIMILARITY_JSON_NAME)
 
 
 def load_master_profiles(db_dir: Optional[str] = None) -> Dict[str, torch.Tensor]:
@@ -77,7 +91,51 @@ def save_clustermap(df: pd.DataFrame, path: str) -> None:
     log.info(f"  -> 시각화 결과물 저장: {path}")
 
 
-def generate_and_visualize_similarity() -> Optional[pd.DataFrame]:
+def top_similar_pairs(df: pd.DataFrame, limit: int = 10) -> list:
+    """유사도 행렬의 대각선을 제외한 상위 아티스트 쌍을 반환합니다."""
+    pairs = [
+        {
+            "artist_a": str(df.index[i]),
+            "artist_b": str(df.index[j]),
+            "similarity": round(float(df.iat[i, j]), 4),
+        }
+        for i in range(len(df.index))
+        for j in range(i + 1, len(df.columns))
+    ]
+    pairs.sort(
+        key=lambda pair: (-pair["similarity"], pair["artist_a"], pair["artist_b"])
+    )
+    return pairs[:limit]
+
+
+def save_top_pairs(pairs: list, txt_path: str, csv_path: str) -> None:
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write("=== Top 10 Vocal Similarity Pairs ===\n")
+        f.write("순위 | 아티스트 A | 아티스트 B | 코사인 유사도\n")
+        for rank, pair in enumerate(pairs, start=1):
+            f.write(
+                f"{rank:>2} | {pair['artist_a']} | {pair['artist_b']} "
+                f"| {pair['similarity']:.4f}\n"
+            )
+
+    pd.DataFrame(
+        [
+            {
+                "rank": rank,
+                "artist_a": pair["artist_a"],
+                "artist_b": pair["artist_b"],
+                "similarity": pair["similarity"],
+            }
+            for rank, pair in enumerate(pairs, start=1)
+        ],
+        columns=["rank", "artist_a", "artist_b", "similarity"],
+    ).to_csv(csv_path, index=False, encoding="utf-8-sig")
+    log.info(f"  -> 상위 유사도 쌍 보고서 저장: {txt_path}")
+
+
+def generate_and_visualize_similarity(
+    output_dir: Optional[str] = None,
+) -> Optional[pd.DataFrame]:
     """
     아티스트별 마스터 프로필을 생성하고, 유사도 행렬을 계산하여
     클러스터맵과 텍스트 파일로 저장합니다. 비교 대상이 2명 미만이면 None.
@@ -92,6 +150,41 @@ def generate_and_visualize_similarity() -> Optional[pd.DataFrame]:
         return None
 
     df = build_similarity_dataframe(master_profiles)
-    save_similarity_text(df, similarity_txt_path())
-    save_clustermap(df, clustermap_path())
+    output_dir = output_dir or config.DB_DIR
+    os.makedirs(output_dir, exist_ok=True)
+    pairs = top_similar_pairs(df)
+    matrix = [[round(float(value), 4) for value in row] for row in df.values.tolist()]
+    run_id = (
+        os.path.basename(output_dir)
+        if os.path.basename(os.path.dirname(output_dir)) == "runs"
+        else None
+    )
+    payload = {
+        "run_id": run_id,
+        "created_at": run_id,
+        "artists": list(df.index),
+        "matrix": matrix,
+        "top_pairs": pairs,
+    }
+
+    save_similarity_text(df, os.path.join(output_dir, SIMILARITY_TXT_NAME))
+    save_clustermap(df, os.path.join(output_dir, CLUSTERMAP_PNG_NAME))
+    save_top_pairs(
+        pairs,
+        os.path.join(output_dir, TOP_PAIRS_TXT_NAME),
+        os.path.join(output_dir, TOP_PAIRS_CSV_NAME),
+    )
+    if run_id:
+        with open(similarity_json_path(output_dir), "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    if os.path.abspath(output_dir) != os.path.abspath(config.DB_DIR):
+        for name in (
+            SIMILARITY_TXT_NAME,
+            CLUSTERMAP_PNG_NAME,
+            TOP_PAIRS_TXT_NAME,
+            TOP_PAIRS_CSV_NAME,
+        ):
+            shutil.copy2(os.path.join(output_dir, name), os.path.join(config.DB_DIR, name))
+        log.info(f"  -> 최신 결과 복사: {config.DB_DIR}")
     return df

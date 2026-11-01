@@ -61,15 +61,20 @@ class Job:
     finished_at: Optional[float] = None
     log_lines: Deque[str] = field(default_factory=deque)
     log_offset: int = 0  # log_lines[0] 의 전역 줄 번호 (오래된 줄이 잘려도 증분 조회 가능)
+    failure_logs: Deque[str] = field(default_factory=deque)
     cancel_event: threading.Event = field(default_factory=threading.Event, repr=False)
     _log_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
-    def append_log(self, line: str, max_lines: int) -> None:
+    def append_log(self, line: str, max_lines: int, is_failure: bool = False) -> None:
         with self._log_lock:
             self.log_lines.append(line)
             if len(self.log_lines) > max_lines:
                 self.log_lines.popleft()
                 self.log_offset += 1
+            if is_failure:
+                self.failure_logs.append(line)
+                if len(self.failure_logs) > max_lines:
+                    self.failure_logs.popleft()
 
     def logs_since(self, offset: int):
         """(offset 이후의 로그 줄들, 다음 조회에 쓸 offset) 을 반환합니다."""
@@ -93,7 +98,11 @@ class _JobLogHandler(logging.Handler):
         if record.thread != self.thread_id:
             return
         for line in self.format(record).splitlines() or [""]:
-            self.job.append_log(line, self.max_lines)
+            self.job.append_log(
+                line,
+                self.max_lines,
+                is_failure=record.levelno >= logging.ERROR,
+            )
 
 
 class JobManager:

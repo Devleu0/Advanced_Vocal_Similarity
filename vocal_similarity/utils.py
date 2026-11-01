@@ -1,3 +1,5 @@
+import hashlib
+import ipaddress
 import platform
 import re
 from urllib.parse import urlparse
@@ -53,13 +55,49 @@ _YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
 
 
 def is_youtube_url(url):
-    """유튜브 도메인이면서 비디오 ID 를 추출할 수 있는 URL 인지 검사합니다.
-
-    extract_video_id 는 경로의 11자리 문자열도 ID 로 인식하므로(예: example.com/not-youtube),
-    사용자 입력 검증에는 이 함수를 사용합니다.
-    """
+    """유튜브 동영상 ID를 추출할 수 있는 URL인지 검사합니다."""
     if not url:
         return False
-    host = urlparse(url if "://" in url else f"https://{url}").hostname or ""
+    try:
+        host = urlparse(url if "://" in url else f"//{url}").hostname or ""
+    except ValueError:
+        return False
     on_youtube = any(host == h or host.endswith("." + h) for h in _YOUTUBE_HOSTS)
     return on_youtube and extract_video_id(url) is not None
+
+
+def is_valid_media_url(url):
+    """yt-dlp 입력으로 사용할 외부 HTTP(S) URL을 검사합니다.
+
+    URL 자체로 localhost 또는 사설·예약 IP에 접근하지 못하도록 제한합니다.
+    실제 사이트/미디어 지원 여부는 yt-dlp 실행 시 확인됩니다.
+    """
+    if not url or url != url.strip():
+        return False
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            return False
+        if parsed.username or parsed.password or not parsed.hostname:
+            return False
+        host = parsed.hostname.rstrip(".").lower()
+        if host == "localhost" or host.endswith((".localhost", ".local")):
+            return False
+        port = parsed.port
+    except ValueError:
+        return False
+
+    if port is not None and not 1 <= port <= 65535:
+        return False
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return True
+    return address.is_global
+
+
+def extract_media_id(url):
+    """미디어 URL의 파일 저장용 ID를 반환합니다(YouTube는 기존 11자리 ID 유지)."""
+    if is_youtube_url(url):
+        return extract_video_id(url)
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
