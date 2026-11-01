@@ -163,6 +163,7 @@ def test_process_extracts_and_saves_embedding(env, mocker):
 
 def test_process_silent_audio_saves_nothing(env, mocker):
     artist, raw = _prepare_vocal(env)
+    mocker.patch('vocal_similarity.config.USE_VAD', True)
     mocker.patch('vocal_similarity.processing.torchaudio.load',
                  return_value=(torch.zeros(1, 16000 * 10), 16000))
     classifier = MagicMock()

@@ -17,9 +17,10 @@ jobs:
   test-and-lint:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        # Test against multiple Python versions for broader compatibility
-        python-version: ['3.9', '3.10', '3.11']
+        # Match the minimum supported Python version in the project documentation.
+        python-version: ['3.11', '3.12']
 
     steps:
     - name: Checkout repository
