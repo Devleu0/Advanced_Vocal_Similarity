@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from utils import extract_video_id, setup_korean_font
+from utils import extract_video_id, is_youtube_url, setup_korean_font
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
@@ -22,6 +22,18 @@ def test_extract_video_id_valid(url):
 @pytest.mark.parametrize("url", ["https://www.google.com", ""])
 def test_extract_video_id_invalid(url):
     assert extract_video_id(url) is None
+
+
+@pytest.mark.parametrize("url, expected", [
+    ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", True),
+    ("https://m.youtube.com/watch?v=dQw4w9WgXcQ", True),
+    ("youtu.be/dQw4w9WgXcQ", True),
+    ("https://example.com/not-youtube", False),  # 경로가 우연히 11자리
+    ("https://www.youtube.com/", False),
+    ("", False),
+])
+def test_is_youtube_url(url, expected):
+    assert is_youtube_url(url) is expected
 
 
 def test_setup_korean_font_windows(mocker):

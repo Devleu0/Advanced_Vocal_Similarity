@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Advanced Vocal Similarity</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">〰</span>
+      <div>
+        <h1>Advanced Vocal Similarity</h1>
+        <p class="subtitle">유튜브 영상 속 목소리를 분리·지문화하여 아티스트 간 음색 유사도를 비교합니다</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 1. 아티스트 관리 -->
+    <section class="card" id="artists-panel" aria-labelledby="artists-title">
+      <div class="card-head">
+        <h2 id="artists-title"><span class="step">1</span> 아티스트 &amp; URL</h2>
+        <button class="btn ghost small" id="artist-new-btn" type="button">+ 새 아티스트</button>
+      </div>
+
+      <form id="artist-form" class="artist-form" hidden>
+        <label>아티스트 이름
+          <input name="name" id="artist-name" required maxlength="64" placeholder="예: 아이유">
+        </label>
+        <label>유튜브 URL <span class="hint">(한 줄에 하나)</span>
+          <textarea name="urls" id="artist-urls" rows="5"
+            placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/..."></textarea>
+        </label>
+        <p class="form-error" id="artist-form-error" role="alert"></p>
+        <div class="row end">
+          <button class="btn ghost" type="button" id="artist-cancel-btn">취소</button>
+          <button class="btn primary" type="submit">저장</button>
+        </div>
+      </form>
+
+      <ul class="artist-list" id="artist-list" aria-live="polite"></ul>
+      <p class="empty" id="artist-empty" hidden>등록된 아티스트가 없습니다. ‘새 아티스트’로 시작하세요.</p>
+    </section>
+
+    <!-- 2. 분석 실행 -->
+    <section class="card" id="job-panel" aria-labelledby="job-title">
+      <div class="card-head">
+        <h2 id="job-title"><span class="step">2</span> 분석 실행</h2>
+        <span class="badge" id="job-status-badge">대기</span>
+      </div>
+      <p class="muted">체크한 아티스트만 분석합니다. 아무것도 선택하지 않으면 전체를 분석합니다.
+        이미 처리된 영상은 자동으로 건너뜁니다.</p>
+      <div class="row">
+        <button class="btn primary" id="job-start-btn" type="button">▶ 분석 시작</button>
+        <button class="btn danger" id="job-cancel-btn" type="button" hidden>■ 취소</button>
+        <span class="muted small" id="job-target"></span>
+      </div>
+      <ol class="stages" id="job-stages"></ol>
+      <div class="progress" aria-hidden="true"><div class="progress-bar" id="job-progress"></div></div>
+      <p class="form-error" id="job-error" role="alert"></p>
+      <details class="log-box" id="job-log-box">
+        <summary>실행 로그</summary>
+        <pre id="job-log" aria-live="polite"></pre>
+      </details>
+    </section>
+
+    <!-- 3. 결과 -->
+    <section class="card wide" id="results-panel" aria-labelledby="results-title">
+      <div class="card-head">
+        <h2 id="results-title"><span class="step">3</span> 유사도 결과</h2>
+        <div class="row">
+          <button class="btn ghost small" id="results-refresh-btn" type="button">새로고침</button>
+          <a class="btn ghost small" id="results-csv-link" href="api/results/similarity.csv" download>CSV 다운로드</a>
+        </div>
+      </div>
+      <p class="empty" id="results-empty">지문이 추출된 아티스트가 2명 이상이면 유사도 행렬이 표시됩니다.</p>
+      <div class="results-grid">
+        <div class="heatmap-wrap" id="heatmap-wrap" hidden>
+          <table class="heatmap" id="heatmap"></table>
+          <div class="legend"><span>0.0</span><div class="legend-bar"></div><span>1.0</span></div>
+        </div>
+        <figure class="clustermap" id="clustermap-figure" hidden>
+          <a id="clustermap-link" target="_blank" rel="noopener"><img id="clustermap-img" alt="보컬 유사도 클러스터맵"></a>
+          <figcaption>클러스터맵 (마지막 분석 실행 시 생성)</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
