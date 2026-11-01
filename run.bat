@@ -46,6 +46,13 @@ if exist "requirements-dev.txt" (
 goto :run_main
 
 :run_main
+echo [*] Updating YouTube downloader and JavaScript challenge support...
+call .\venv\Scripts\python.exe -m pip install -q "yt-dlp[default]>=2026.10.26"
+if %errorlevel% neq 0 (
+    echo [!] Failed to update yt-dlp and its YouTube challenge support.
+    goto :error_exit
+)
+
 echo.
 echo ==============================================
 echo [*] Starting the pipeline (main.py)...

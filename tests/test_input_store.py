@@ -24,7 +24,7 @@ def test_invalid_names_rejected(name):
         input_store.validate_artist_name(name)
 
 
-@pytest.mark.parametrize("name", ["아이유", "artist_A", "New Jeans", "BTS-v.2"])
+@pytest.mark.parametrize("name", ["아이유", "りりあ。", "artist_A", "New Jeans", "BTS-v.2"])
 def test_valid_names_accepted(name):
     assert input_store.validate_artist_name(f" {name} ") == name
 

@@ -21,7 +21,8 @@ def env(tmp_path, mocker):
 
 # ---------- download_original_audio ----------
 def test_download_invalid_url():
-    assert processing.download_original_audio("https://example.com", "A") == (None, None)
+    result = processing.download_original_audio("ftp://example.com/audio", "A")
+    assert result == (None, None)
 
 
 def test_download_skipped_when_raw_exists(env):
@@ -43,8 +44,44 @@ def test_download_success(mocker):
     run = mocker.patch('vocal_similarity.processing.subprocess.run', side_effect=fake_run)
     temp, raw = processing.download_original_audio(URL, "A")
     run.assert_called_once()
+    command = run.call_args.args[0]
+    assert command[:5] == [
+        processing.sys.executable, "-m", "yt_dlp", "--js-runtimes", "node"
+    ]
     assert temp.endswith(".webm")
     assert raw.endswith(f"raw_{VID}.mp3")
+
+
+def test_download_can_use_browser_cookies(env, mocker):
+    mocker.patch(
+        "vocal_similarity.config.YOUTUBE_COOKIES_FROM_BROWSER",
+        "chrome",
+    )
+    run = mocker.patch(
+        "vocal_similarity.processing.subprocess.run",
+        side_effect=subprocess.CalledProcessError(1, "yt-dlp", stderr="auth required"),
+    )
+
+    processing.download_original_audio(URL, "A")
+
+    command = run.call_args.args[0]
+    cookie_index = command.index("--cookies-from-browser")
+    assert command[cookie_index + 1] == "chrome"
+
+
+def test_age_restriction_failure_suggests_browser_cookies(mocker):
+    mocker.patch(
+        "vocal_similarity.processing.subprocess.run",
+        side_effect=subprocess.CalledProcessError(
+            1,
+            "yt-dlp",
+            stderr="ERROR: Sign in to confirm your age",
+        ),
+    )
+
+    processing.download_original_audio(URL, "A")
+
+    assert "YOUTUBE_COOKIES_FROM_BROWSER" in processing.log.error.call_args.args[0]
 
 
 def test_download_failure_returns_none_temp(mocker):

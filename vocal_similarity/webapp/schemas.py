@@ -11,7 +11,7 @@ from .services.jobs import Job
 
 class UrlStatusOut(BaseModel):
     url: str
-    video_id: Optional[str]
+    media_id: Optional[str]
     status: str
 
 
@@ -24,13 +24,13 @@ class ArtistOut(BaseModel):
     def from_domain(cls, artist: Artist) -> "ArtistOut":
         return cls(
             name=artist.name,
-            urls=[UrlStatusOut(url=u.url, video_id=u.video_id, status=u.status) for u in artist.urls],
+            urls=[UrlStatusOut(url=u.url, media_id=u.video_id, status=u.status) for u in artist.urls],
             embeddings=artist.embeddings,
         )
 
 
 class ArtistIn(BaseModel):
-    urls: List[str] = Field(default_factory=list, description="유튜브 URL 목록")
+    urls: List[str] = Field(default_factory=list, description="yt-dlp media URLs")
 
 
 class JobCreate(BaseModel):
@@ -49,6 +49,7 @@ class JobOut(BaseModel):
     started_at: Optional[float]
     finished_at: Optional[float]
     logs: List[str] = Field(default_factory=list)
+    failure_logs: List[str] = Field(default_factory=list)
     next_log_offset: int = 0
 
     @classmethod
@@ -58,11 +59,24 @@ class JobOut(BaseModel):
             id=job.id, artists=job.artists, status=job.status.value, stage=job.stage,
             current=job.current, total=job.total, error=job.error,
             created_at=job.created_at, started_at=job.started_at, finished_at=job.finished_at,
-            logs=logs, next_log_offset=next_offset,
+            logs=logs, failure_logs=list(job.failure_logs), next_log_offset=next_offset,
         )
+
+
+class TopPairOut(BaseModel):
+    artist_a: str
+    artist_b: str
+    similarity: float
 
 
 class SimilarityOut(BaseModel):
     artists: List[str]
     matrix: List[List[float]]
+    top_pairs: List[TopPairOut]
+    run_id: Optional[str] = None
     clustermap_available: bool = False
+
+
+class AnalysisRunOut(BaseModel):
+    id: str
+    created_at: str

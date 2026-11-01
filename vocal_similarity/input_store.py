@@ -12,8 +12,8 @@ from typing import Dict, List
 
 INPUT_EXT = ".txt"
 
-# 한글/영문/숫자/밑줄/하이픈/공백/마침표 허용, 경로 구분자 및 선행 마침표 금지 (경로 조작 방지)
-_ARTIST_NAME_RE = re.compile(r"^(?!\.)[\w\-. ]{1,64}$")
+# 한글/영문/숫자/밑줄/하이픈/공백/마침표/일본어 구두점 허용, 경로 구분자 및 선행 마침표 금지
+_ARTIST_NAME_RE = re.compile(r"^(?!\.)[\w\-. 。]{1,64}$")
 
 
 class InvalidArtistName(ValueError):
@@ -26,7 +26,7 @@ def validate_artist_name(name: str) -> str:
     if not _ARTIST_NAME_RE.match(cleaned) or cleaned in (".", ".."):
         raise InvalidArtistName(
             f"아티스트 이름이 올바르지 않습니다: {name!r} "
-            "(한글/영문/숫자/공백/-/_/. 만 사용, 최대 64자)"
+            "(한글/영문/숫자/공백/-/_/./。 만 사용, 최대 64자)"
         )
     return cleaned
 

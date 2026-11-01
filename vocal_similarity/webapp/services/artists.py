@@ -11,10 +11,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from ... import config, input_store
-from ...utils import extract_video_id, is_youtube_url
+from ...utils import extract_media_id, is_valid_media_url
 
 # URL 별 처리 상태 (진행 순서대로)
-STATUS_INVALID = "invalid"      # 유튜브 URL 형식 아님
+STATUS_INVALID = "invalid"      # URL 형식이 유효하지 않음
 STATUS_PENDING = "pending"      # 아직 처리 전
 STATUS_DOWNLOADED = "downloaded"  # raw mp3 존재
 STATUS_SEPARATED = "separated"  # 보컬 분리 완료
@@ -23,7 +23,7 @@ STATUS_DONE = "done"            # 지문(임베딩) 추출 완료
 
 class InvalidUrls(ValueError):
     def __init__(self, urls: List[str]):
-        super().__init__("유튜브 URL 형식이 아닙니다: " + ", ".join(urls))
+        super().__init__("외부 HTTP(S) 미디어 URL 형식이 아닙니다: " + ", ".join(urls))
         self.urls = urls
 
 
@@ -45,9 +45,9 @@ class Artist:
 
 
 def url_status(artist_name: str, url: str, db_dir: Optional[str] = None) -> UrlStatus:
-    if not is_youtube_url(url):
+    if not is_valid_media_url(url):
         return UrlStatus(url, None, STATUS_INVALID)
-    vid = extract_video_id(url)
+    vid = extract_media_id(url)
     artist_dir = os.path.join(db_dir or config.DB_DIR, artist_name)
 
     def exists(name: str) -> bool:
@@ -80,7 +80,7 @@ class ArtistService:
     def save(self, name: str, urls: List[str]) -> Artist:
         name = input_store.validate_artist_name(name)
         cleaned = list(dict.fromkeys(u.strip() for u in urls if u and u.strip()))  # 순서 유지 중복 제거
-        invalid = [u for u in cleaned if not is_youtube_url(u)]
+        invalid = [u for u in cleaned if not is_valid_media_url(u)]
         if invalid:
             raise InvalidUrls(invalid)
         input_store.write_urls(config.INPUT_DIR, name, cleaned)

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Advanced Vocal Similarity</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -12,8 +12,15 @@
       <span class="logo" aria-hidden="true">〰</span>
       <div>
         <h1>Advanced Vocal Similarity</h1>
-        <p class="subtitle">유튜브 영상 속 목소리를 분리·지문화하여 아티스트 간 음색 유사도를 비교합니다</p>
+        <p class="subtitle" data-i18n="app.subtitle"></p>
       </div>
+      <label class="language-picker" data-i18n-aria-label="language.picker.aria">
+        <span data-i18n="language.label">언어</span>
+        <select id="language-select" data-i18n-aria-label="language.picker.aria">
+          <option value="ko">한국어</option>
+          <option value="en">English</option>
+        </select>
+      </label>
     </div>
   </header>
 
@@ -21,47 +28,49 @@
     <!-- 1. 아티스트 관리 -->
     <section class="card" id="artists-panel" aria-labelledby="artists-title">
       <div class="card-head">
-        <h2 id="artists-title"><span class="step">1</span> 아티스트 &amp; URL</h2>
-        <button class="btn ghost small" id="artist-new-btn" type="button">+ 새 아티스트</button>
+        <h2 id="artists-title"><span class="step">1</span> <span data-i18n="artists.title"></span></h2>
+        <button class="btn ghost small" id="artist-new-btn" type="button" data-i18n="artists.new"></button>
       </div>
 
       <form id="artist-form" class="artist-form" hidden>
-        <label>아티스트 이름
-          <input name="name" id="artist-name" required maxlength="64" placeholder="예: 아이유">
+        <label><span data-i18n="artist.name"></span>
+          <input name="name" id="artist-name" required maxlength="64" data-i18n-placeholder="artist.name.placeholder">
         </label>
-        <label>유튜브 URL <span class="hint">(한 줄에 하나)</span>
+        <label><span data-i18n="media.urls"></span> <span class="hint" data-i18n="media.urls.hint"></span>
           <textarea name="urls" id="artist-urls" rows="5"
-            placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/..."></textarea>
+            data-i18n-placeholder="media.urls.placeholder"></textarea>
         </label>
         <p class="form-error" id="artist-form-error" role="alert"></p>
         <div class="row end">
-          <button class="btn ghost" type="button" id="artist-cancel-btn">취소</button>
-          <button class="btn primary" type="submit">저장</button>
+          <button class="btn ghost" type="button" id="artist-cancel-btn" data-i18n="button.cancel"></button>
+          <button class="btn primary" type="submit" data-i18n="button.save"></button>
         </div>
       </form>
 
       <ul class="artist-list" id="artist-list" aria-live="polite"></ul>
-      <p class="empty" id="artist-empty" hidden>등록된 아티스트가 없습니다. ‘새 아티스트’로 시작하세요.</p>
+      <p class="empty" id="artist-empty" data-i18n="artists.empty" hidden></p>
     </section>
 
     <!-- 2. 분석 실행 -->
     <section class="card" id="job-panel" aria-labelledby="job-title">
       <div class="card-head">
-        <h2 id="job-title"><span class="step">2</span> 분석 실행</h2>
-        <span class="badge" id="job-status-badge">대기</span>
+        <h2 id="job-title"><span class="step">2</span> <span data-i18n="job.title"></span></h2>
+        <span class="badge" id="job-status-badge" data-i18n="job.status.waiting"></span>
       </div>
-      <p class="muted">체크한 아티스트만 분석합니다. 아무것도 선택하지 않으면 전체를 분석합니다.
-        이미 처리된 영상은 자동으로 건너뜁니다.</p>
+      <p class="muted" data-i18n="job.description"></p>
       <div class="row">
-        <button class="btn primary" id="job-start-btn" type="button">▶ 분석 시작</button>
-        <button class="btn danger" id="job-cancel-btn" type="button" hidden>■ 취소</button>
+        <button class="btn primary" id="job-start-btn" type="button" data-i18n="job.start"></button>
+        <button class="btn danger" id="job-cancel-btn" type="button" data-i18n="job.cancel" hidden></button>
         <span class="muted small" id="job-target"></span>
       </div>
       <ol class="stages" id="job-stages"></ol>
       <div class="progress" aria-hidden="true"><div class="progress-bar" id="job-progress"></div></div>
       <p class="form-error" id="job-error" role="alert"></p>
+      <div class="row end log-actions">
+        <button class="btn ghost small" id="job-copy-failures-btn" type="button" data-i18n="job.copy.failures" disabled></button>
+      </div>
       <details class="log-box" id="job-log-box">
-        <summary>실행 로그</summary>
+        <summary data-i18n="job.logs"></summary>
         <pre id="job-log" aria-live="polite"></pre>
       </details>
     </section>
@@ -69,27 +78,55 @@
     <!-- 3. 결과 -->
     <section class="card wide" id="results-panel" aria-labelledby="results-title">
       <div class="card-head">
-        <h2 id="results-title"><span class="step">3</span> 유사도 결과</h2>
+        <h2 id="results-title"><span class="step">3</span> <span data-i18n="results.title"></span></h2>
         <div class="row">
-          <button class="btn ghost small" id="results-refresh-btn" type="button">새로고침</button>
-          <a class="btn ghost small" id="results-csv-link" href="api/results/similarity.csv" download>CSV 다운로드</a>
+          <label class="run-picker"><span data-i18n="results.run.label"></span>
+            <select id="results-run-select" data-i18n-aria-label="results.run.aria"></select>
+          </label>
+          <button class="btn ghost small" id="results-refresh-btn" type="button" data-i18n="results.refresh"></button>
+          <a class="btn ghost small" id="results-csv-link" href="api/results/similarity.csv" download data-i18n="results.csv"></a>
+          <a class="btn ghost small" id="results-report-link" href="api/results/top-pairs.csv" download data-i18n="results.top.csv" hidden></a>
         </div>
       </div>
-      <p class="empty" id="results-empty">지문이 추출된 아티스트가 2명 이상이면 유사도 행렬이 표시됩니다.</p>
+      <p class="muted" id="results-run-label"></p>
+      <p class="empty" id="results-empty" data-i18n="results.empty"></p>
       <div class="results-grid">
-        <div class="heatmap-wrap" id="heatmap-wrap" hidden>
+        <div class="heatmap-wrap" id="heatmap-wrap" role="region" data-i18n-aria-label="results.matrix.aria" tabindex="0" hidden>
+          <div class="heatmap-toolbar" data-i18n-aria-label="results.matrix.controls.aria">
+            <div class="row zoom-controls">
+              <span data-i18n="results.zoom.label"></span>
+              <button class="btn ghost small" id="heatmap-zoom-out" type="button" data-i18n-aria-label="results.zoom.out">−</button>
+              <output id="heatmap-zoom-label" aria-live="polite">100%</output>
+              <button class="btn ghost small" id="heatmap-zoom-in" type="button" data-i18n-aria-label="results.zoom.in">+</button>
+              <button class="btn ghost small" id="heatmap-zoom-reset" type="button" data-i18n="results.zoom.reset"></button>
+            </div>
+            <button class="btn ghost small" id="heatmap-highlight-clear" type="button" data-i18n="results.highlight.clear" disabled></button>
+          </div>
           <table class="heatmap" id="heatmap"></table>
           <div class="legend"><span>0.0</span><div class="legend-bar"></div><span>1.0</span></div>
         </div>
         <figure class="clustermap" id="clustermap-figure" hidden>
-          <a id="clustermap-link" target="_blank" rel="noopener"><img id="clustermap-img" alt="보컬 유사도 클러스터맵"></a>
-          <figcaption>클러스터맵 (마지막 분석 실행 시 생성)</figcaption>
+          <a id="clustermap-link" target="_blank" rel="noopener"><img id="clustermap-img" data-i18n-alt="results.clustermap.alt"></a>
+          <figcaption data-i18n="results.clustermap.caption"></figcaption>
         </figure>
       </div>
+      <p class="scroll-hint" id="heatmap-scroll-hint" data-i18n="results.scroll.hint" hidden></p>
+      <section class="top-pairs" id="top-pairs-section" aria-labelledby="top-pairs-title" hidden>
+        <div class="card-head">
+          <h3 id="top-pairs-title" data-i18n="results.top.title"></h3>
+          <a class="btn ghost small" id="results-report-txt-link" href="api/results/top-pairs.txt" download data-i18n="results.report.txt"></a>
+        </div>
+        <div class="table-scroll">
+          <table class="pairs-table">
+            <thead><tr><th scope="col" data-i18n="results.rank"></th><th scope="col" data-i18n="results.artist.a"></th><th scope="col" data-i18n="results.artist.b"></th><th scope="col" data-i18n="results.score"></th></tr></thead>
+            <tbody id="top-pairs-body"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

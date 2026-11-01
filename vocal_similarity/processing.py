@@ -2,6 +2,7 @@ import glob
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import torch
@@ -17,17 +18,17 @@ from .fingerprint import (
     split_into_chunks,
 )
 from .logger import log
-from .utils import extract_video_id
+from .utils import extract_media_id, is_valid_media_url, is_youtube_url
 
 
 def download_original_audio(url, artist_name):
     """
     yt-dlp를 사용하여 원본 오디오를 임시 폴더에 다운로드합니다.
     """
-    vid = extract_video_id(url)
-    if not vid:
-        log.error(f"  [오류] 올바르지 않은 유튜브 URL 형식입니다: {url}")
+    if not is_valid_media_url(url):
+        log.error(f"  [오류] 올바르지 않은 미디어 URL 형식입니다: {url}")
         return None, None
+    vid = extract_media_id(url)
 
     artist_dir = os.path.join(config.DB_DIR, artist_name)
     temp_dir = os.path.join(artist_dir, "temp")
@@ -50,14 +51,25 @@ def download_original_audio(url, artist_name):
     log.info(f"  [Download] 원본 오디오 다운로드 시작: {url}")
     
     # 항상 안정적인 다운로드를 위해 URL을 정규화합니다.
-    clean_url = f"https://www.youtube.com/watch?v={vid}"
+    clean_url = (
+        f"https://www.youtube.com/watch?v={vid}"
+        if is_youtube_url(url)
+        else url
+    )
     log.debug(f"  -> 정규화된 URL: {clean_url}")
 
     try:
         yt_dlp_command = [
-            'yt-dlp', '-f', config.DOWNLOAD_AUDIO_QUALITY,
+            sys.executable, '-m', 'yt_dlp',
+            '--js-runtimes', 'node',
+            '-f', config.DOWNLOAD_AUDIO_QUALITY,
             '-o', f"{temp_path_template}.%(ext)s", clean_url
         ]
+        if config.YOUTUBE_COOKIES_FROM_BROWSER:
+            yt_dlp_command[4:4] = [
+                '--cookies-from-browser',
+                config.YOUTUBE_COOKIES_FROM_BROWSER,
+            ]
         result = subprocess.run(yt_dlp_command, check=True, capture_output=True, text=True, encoding='utf-8', timeout=300)
         log.debug(f"yt-dlp stdout: {result.stdout}")
 
@@ -74,7 +86,13 @@ def download_original_audio(url, artist_name):
     except subprocess.TimeoutExpired as e:
         log.error(f"  [오류] yt-dlp 시간 초과 (URL: {url}) | {e.stderr}", exc_info=True)
     except subprocess.CalledProcessError as e:
-        log.error(f"  [오류] yt-dlp 실패 (URL: {url}) | {e.stderr}", exc_info=True)
+        details = e.stderr or str(e)
+        if "Sign in to confirm your age" in details:
+            details += (
+                "\n연령 확인이 필요한 영상입니다. 이 계정에서 영상 재생이 가능하다면 "
+                "config.YOUTUBE_COOKIES_FROM_BROWSER에 chrome 또는 edge를 설정하세요."
+            )
+        log.error(f"  [오류] yt-dlp 실패 (URL: {url}) | {details}", exc_info=True)
     except Exception as e:
         log.error(f"  [오류] 다운로드 중 알 수 없는 오류 (URL: {url}) | {e}", exc_info=True)
     
@@ -122,7 +140,7 @@ def process_audio(raw_path, classifier, artist_name, url):
     """
     raw 오디오 파일에서 보컬을 분리하고 지문을 추출합니다.
     """
-    vid = extract_video_id(url)
+    vid = extract_media_id(url)
     if not raw_path or not os.path.exists(raw_path):
         log.error(f"  [Process Error] 원본 오디오 파일이 없습니다: {raw_path}")
         return

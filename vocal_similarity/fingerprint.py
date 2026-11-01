@@ -18,10 +18,16 @@ def prepare_waveform(waveform, sr, target_sr, resample_fn=None):
 
 
 def split_into_chunks(waveform, sr, chunk_sec, min_tail_sec=1):
-    """파형을 chunk_sec 단위로 자르고, min_tail_sec 보다 짧은 마지막 조각은 버립니다."""
-    chunks = list(torch.split(waveform, sr * chunk_sec, dim=1))
+    """고정 길이 청크로 나누고, 너무 짧지 않은 마지막 청크는 무음 패딩합니다."""
+    chunk_samples = sr * chunk_sec
+    chunks = list(torch.split(waveform, chunk_samples, dim=1))
     if chunks and chunks[-1].shape[1] < sr * min_tail_sec:
         chunks = chunks[:-1]
+    if chunks and chunks[-1].shape[1] < chunk_samples:
+        chunks[-1] = torch.nn.functional.pad(
+            chunks[-1],
+            (0, chunk_samples - chunks[-1].shape[1]),
+        )
     return chunks
 
 

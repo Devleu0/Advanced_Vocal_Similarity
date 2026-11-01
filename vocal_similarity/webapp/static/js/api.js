@@ -37,6 +37,10 @@ export const api = {
   getJob: (id, logOffset = 0) => request('GET', `api/jobs/${enc(id)}?log_offset=${logOffset}`),
   cancelJob: (id) => request('POST', `api/jobs/${enc(id)}/cancel`),
 
-  similarity: () => request('GET', 'api/results/similarity'),
-  clustermapUrl: () => `api/results/clustermap.png?t=${Date.now()}`,
+  listResultRuns: () => request('GET', 'api/results/runs'),
+  similarity: (runId) => request('GET', `api/results/similarity${runId ? `?run_id=${enc(runId)}` : ''}`),
+  similarityCsvUrl: (runId) => `api/results/similarity.csv${runId ? `?run_id=${enc(runId)}` : ''}`,
+  topPairsCsvUrl: (runId) => `api/results/top-pairs.csv${runId ? `?run_id=${enc(runId)}` : ''}`,
+  topPairsTxtUrl: (runId) => `api/results/top-pairs.txt${runId ? `?run_id=${enc(runId)}` : ''}`,
+  clustermapUrl: (runId) => `api/results/clustermap.png?${runId ? `run_id=${enc(runId)}&` : ''}t=${Date.now()}`,
 };

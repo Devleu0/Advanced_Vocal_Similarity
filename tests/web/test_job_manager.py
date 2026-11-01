@@ -29,12 +29,17 @@ def test_successful_job_collects_progress_and_logs():
 
 def test_failed_job_records_error():
     def runner(*_):
+        log.error("download failed")
         raise ValueError("boom")
 
     jm = JobManager(runner)
     job = jm.wait(jm.submit().id)
     assert job.status is JobStatus.FAILED
     assert "boom" in job.error
+    assert list(job.failure_logs)[:2] == [
+        "download failed",
+        "[!] 작업 실패: ValueError: boom",
+    ]
 
 
 def test_only_one_active_job_and_cancel():
