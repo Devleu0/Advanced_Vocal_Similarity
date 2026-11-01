@@ -12,7 +12,9 @@ def setup_logger():
     - 파일: DEBUG 레벨 이상, 상세한 포맷, 5MB마다 파일 교체
     """
     logger = logging.getLogger("VocalSimilarityPipeline")
-    if logger.hasHandlers():
+    # hasHandlers() 는 부모(root) 로거까지 확인하므로, root 에 핸들러가 있는 환경(pytest, 웹 서버 등)에서
+    # 레벨 설정이 건너뛰어져 INFO 로그가 사라지는 문제가 있었습니다. 자기 핸들러만 확인합니다.
+    if logger.handlers:
         return logger # 이미 설정된 경우 중복 방지
 
     logger.setLevel(logging.DEBUG)
