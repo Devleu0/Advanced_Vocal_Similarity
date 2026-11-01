@@ -9,6 +9,9 @@ ml_dtypes>=0.4.0
 speechbrain>=1.0.0
 yt-dlp>=2023.11.16
 
+# Optional: required only for EMBEDDING_MODEL="wavlm-sv" (recommended model)
+transformers>=4.30.0
+
 # Data Processing & Visualization
 seaborn>=0.13.0
 matplotlib>=3.8.0
