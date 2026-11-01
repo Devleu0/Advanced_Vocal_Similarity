@@ -192,10 +192,14 @@ def process_audio(raw_path, classifier, artist_name, url):
     try:
         waveform, sr = torchaudio.load(vocal_path)
         waveform = prepare_waveform(waveform, sr, config.SR)
-        chunks = split_into_chunks(waveform, config.SR, config.CHUNK_SEC)
+        chunks = split_into_chunks(
+            waveform, config.SR, config.CHUNK_SEC, hop_sec=config.CHUNK_HOP_SEC
+        )
 
         if config.USE_VAD:
-            valid_chunks = filter_silent_chunks(chunks, config.VAD_RMS_THRESHOLD)
+            valid_chunks = filter_silent_chunks(
+                chunks, config.VAD_RMS_THRESHOLD, config.VAD_RELATIVE_RATIO
+            )
             log.info(f"  -> VAD 적용 후 청크 수: {len(chunks)} -> {len(valid_chunks)}")
         else:
             valid_chunks = chunks
@@ -205,7 +209,9 @@ def process_audio(raw_path, classifier, artist_name, url):
             log.warning(f"  [주의] 유효한 오디오 구간이 없습니다 ({Path(vocal_path).name}).")
             return
 
-        embs_tensor = encode_chunks(valid_chunks, classifier, config.DEVICE)
+        embs_tensor = encode_chunks(
+            valid_chunks, classifier, config.DEVICE, config.ENCODE_BATCH_SIZE
+        )
         final_embedding, kept = aggregate_embeddings(
             embs_tensor, config.USE_OUTLIER_REMOVAL, config.EMB_TOP_K_RATIO
         )
