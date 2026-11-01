@@ -1,197 +1,134 @@
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
-import os
 import torch
-import torchaudio
+
 import processing
-import config
-from logger import log # Mocked in fixture
 
-# Mock the logger to prevent actual logging during tests
-class MockLogger:
-    def info(self, message):
-        pass
-    def warning(self, message):
-        pass
-    def error(self, message, exc_info=False):
-        pass
+URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+VID = "dQw4w9WgXcQ"
+
 
 @pytest.fixture(autouse=True)
-def mock_logger(mocker):
-    mocker.patch('processing.log', new=MockLogger())
-    mocker.patch('utils.log', new=MockLogger()) # ensure utils.log is also mocked
-
-@pytest.fixture(autouse=True)
-def mock_config_paths(mocker):
-    """config.py의 경로들을 모의(mock)하여 실제 파일 시스템 접근을 방지하고 테스트 환경에 맞춤"""
-    mocker.patch('config.DB_DIR', new='mock_db_dir')
-    mocker.patch('os.makedirs', return_value=None) # os.makedirs 호출 무시
-
-@pytest.fixture
-def mock_separator(mocker):
-    """Audio Separator 인스턴스를 모의(mock)합니다."""
-    mock_sep = MagicMock()
-    mock_sep.separate.return_value = ("mock_vocal.mp3", "mock_instrumental.mp3") # 기본 반환값 설정
-    return mock_sep
-
-@pytest.fixture
-def mock_classifier(mocker):
-    """SpeechBrain Classifier 인스턴스를 모의(mock)합니다."""
-    mock_cls = MagicMock()
-    # encode_batch는 배치 처리 후 임베딩 텐서를 반환
-    mock_cls.encode_batch.return_value = torch.randn(1, 1, 512) # 예시 임베딩 차원
-    return mock_cls
-
-@pytest.fixture
-def mock_torchaudio_load(mocker):
-    """torchaudio.load를 모의(mock)하여 가상의 waveform과 sample_rate를 반환합니다."""
-    mock_waveform = torch.randn(1, config.SR * 10) # 10초 분량의 스테레오 오디오
-    mocker.patch('torchaudio.load', return_value=(mock_waveform, config.SR))
-    return mocker.patch('torchaudio.functional.resample') # resample 함수도 모킹
-
-@pytest.fixture
-def mock_yt_dlp(mocker):
-    """yt_dlp.YoutubeDL을 모의(mock)하여 다운로드 과정을 스킵합니다."""
-    mock_ydl = MagicMock()
-    mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
-    return mock_ydl
-
-@pytest.fixture
-def mock_os_path_exists(mocker):
-    """os.path.exists를 모의(mock)하여 파일 존재 여부를 제어합니다."""
-    return mocker.patch('os.path.exists', return_value=False)
-
-@pytest.fixture
-def mock_glob_glob(mocker):
-    """glob.glob를 모의(mock)합니다."""
-    return mocker.patch('glob.glob', return_value=[])
+def env(tmp_path, mocker):
+    mocker.patch('config.DB_DIR', str(tmp_path))
+    mocker.patch('config.DEVICE', 'cpu')
+    mocker.patch('processing.log', new=MagicMock())
+    return tmp_path
 
 
-# --- Test Cases ---
+# ---------- download_original_audio ----------
+def test_download_invalid_url():
+    assert processing.download_original_audio("https://example.com", "A") == (None, None)
 
-def test_process_url_invalid_url(mock_separator, mock_classifier):
-    """유효하지 않은 URL에 대해 오류를 로깅하고 일찍 종료하는지 테스트"""
-    processing.process_url("invalid-url", "ArtistX", mock_separator, mock_classifier)
-    assert mock_logger.error.called # 오류 로깅 확인
 
-def test_process_url_skip_if_embedding_exists(mock_os_path_exists, mock_separator, mock_classifier):
-    """최종 임베딩 파일이 이미 존재하면 처리를 스킵하는지 테스트"""
-    mock_os_path_exists.side_effect = lambda path: path.endswith(".pt") # .pt 파일만 존재한다고 가정
-    processing.process_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "ArtistX", mock_separator, mock_classifier)
-    assert mock_logger.info.called # 스킵 로깅 확인
-    mock_separator.separate.assert_not_called() # 분리 작업이 수행되지 않았는지 확인
+def test_download_skipped_when_raw_exists(env):
+    artist = env / "A"
+    artist.mkdir()
+    raw = artist / f"raw_{VID}.mp3"
+    raw.write_bytes(b"x")
+    temp, raw_path = processing.download_original_audio(URL, "A")
+    assert temp is None
+    assert Path(raw_path) == raw
 
-def test_process_url_download_and_separate(
-    mocker, mock_os_path_exists, mock_separator, mock_classifier, mock_torchaudio_load, mock_yt_dlp
-):
-    """다운로드 및 보컬 분리, 임베딩 추출 과정이 정상적으로 동작하는지 테스트"""
-    video_id = "dQw4w9WgXcQ"
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    artist_name = "ArtistX"
-    artist_dir = os.path.join(config.DB_DIR, artist_name)
-    raw_path = os.path.join(artist_dir, f"raw_{video_id}.mp3")
-    vocal_path = os.path.join(artist_dir, f"vocal_{video_id}.mp3")
-    emb_path = os.path.join(artist_dir, f"emb_{video_id}.pt")
 
-    # 모든 파일이 존재하지 않는다고 가정
-    mock_os_path_exists.side_effect = lambda path: False
+def test_download_success(mocker):
+    def fake_run(cmd, **kwargs):
+        out = cmd[cmd.index('-o') + 1].replace('%(ext)s', 'webm')
+        Path(out).write_bytes(b"audio")
+        return MagicMock(stdout="")
 
-    # yt_dlp 다운로드 성공 가정 (실제 파일 생성 대신)
-    mock_yt_dlp.return_value.__enter__.return_value.download.return_value = None
-    # raw_path가 생성되었다고 가정 (실제 파일 생성은 안 함)
-    mocker.patch('os.path.exists', side_effect=lambda path: path == raw_path or path == vocal_path)
-    mocker.patch('os.rename', return_value=None)
-    mocker.patch('os.remove', return_value=None)
-    mocker.patch('torch.save', return_value=None)
+    run = mocker.patch('processing.subprocess.run', side_effect=fake_run)
+    temp, raw = processing.download_original_audio(URL, "A")
+    run.assert_called_once()
+    assert temp.endswith(".webm")
+    assert raw.endswith(f"raw_{VID}.mp3")
 
-    processing.process_url(url, artist_name, mock_separator, mock_classifier)
 
-    # yt_dlp 다운로드 호출 확인
-    mock_yt_dlp.assert_called_once()
-    # 분리 작업 호출 확인
-    mock_separator.separate.assert_called_once()
-    # torchaudio.load 호출 확인
-    mock_torchaudio_load.assert_called_once()
-    # classifier.encode_batch 호출 확인
-    mock_classifier.encode_batch.assert_called_once()
-    # torch.save 호출 확인
-    torch.save.assert_called_once()
-    assert mock_logger.info.called_with(f"  -> 최종 지문 저장 완료: {emb_path}")
+def test_download_failure_returns_none_temp(mocker):
+    err = subprocess.CalledProcessError(1, "yt-dlp", stderr="boom")
+    mocker.patch('processing.subprocess.run', side_effect=err)
+    temp, raw = processing.download_original_audio(URL, "A")
+    assert temp is None
+    assert raw.endswith(f"raw_{VID}.mp3")
 
-def test_process_url_vocal_exists_skip_download(
-    mocker, mock_os_path_exists, mock_separator, mock_classifier, mock_torchaudio_load, mock_yt_dlp
-):
-    """보컬 파일이 존재하면 다운로드/분리를 스킵하고 임베딩부터 시작하는지 테스트"""
-    video_id = "dQw4w9WgXcQ"
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    artist_name = "ArtistX"
-    artist_dir = os.path.join(config.DB_DIR, artist_name)
-    raw_path = os.path.join(artist_dir, f"raw_{video_id}.mp3")
-    vocal_path = os.path.join(artist_dir, f"vocal_{video_id}.mp3")
-    emb_path = os.path.join(artist_dir, f"emb_{video_id}.pt")
 
-    # 보컬 파일만 존재한다고 가정
-    mock_os_path_exists.side_effect = lambda path: path == vocal_path
+# ---------- convert_to_mp3 ----------
+def test_convert_no_temp_file():
+    assert processing.convert_to_mp3(None, "x.mp3") is None
 
-    mocker.patch('torch.save', return_value=None)
 
-    processing.process_url(url, artist_name, mock_separator, mock_classifier)
+def test_convert_skips_and_cleans_temp_when_raw_exists(env):
+    temp = env / "t.webm"
+    raw = env / "r.mp3"
+    temp.write_bytes(b"x")
+    raw.write_bytes(b"x")
+    assert processing.convert_to_mp3(str(temp), str(raw)) == str(raw)
+    assert not temp.exists()
 
-    mock_yt_dlp.assert_not_called() # 다운로드 스킵 확인
-    mock_separator.separate.assert_not_called() # 분리 스킵 확인
-    mock_torchaudio_load.assert_called_once() # 임베딩부터 시작 확인
-    mock_classifier.encode_batch.assert_called_once()
-    torch.save.assert_called_once()
 
-def test_process_url_download_fail(
-    mocker, mock_os_path_exists, mock_separator, mock_classifier, mock_yt_dlp
-):
-    """다운로드 실패 시 오류 로깅 후 종료하는지 테스트"""
-    mock_os_path_exists.return_value = False
-    mock_yt_dlp.return_value.__enter__.return_value.download.side_effect = Exception("Download Failed")
-    
-    processing.process_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "ArtistX", mock_separator, mock_classifier)
-    assert mock_logger.error.called # 오류 로깅 확인
-    mock_separator.separate.assert_not_called() # 분리 작업이 수행되지 않았는지 확인
+def test_convert_runs_ffmpeg(env, mocker):
+    temp = env / "t.webm"
+    temp.write_bytes(b"x")
+    run = mocker.patch('processing.subprocess.run')
+    raw = str(env / "r.mp3")
+    assert processing.convert_to_mp3(str(temp), raw) == raw
+    cmd = run.call_args.args[0]
+    assert cmd[0] == 'ffmpeg' and raw in cmd
 
-def test_process_url_separation_fail(
-    mocker, mock_os_path_exists, mock_separator, mock_classifier, mock_torchaudio_load, mock_yt_dlp
-):
-    """음원 분리 실패 시 오류 로깅 후 종료하는지 테스트"""
-    video_id = "dQw4w9WgXcQ"
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    artist_name = "ArtistX"
-    artist_dir = os.path.join(config.DB_DIR, artist_name)
-    raw_path = os.path.join(artist_dir, f"raw_{video_id}.mp3")
 
-    mock_os_path_exists.side_effect = lambda path: path == raw_path # raw 파일만 존재
-    mock_yt_dlp.return_value.__enter__.return_value.download.return_value = None
-    mock_separator.separate.side_effect = Exception("Separation Failed")
-    
-    processing.process_url(url, artist_name, mock_separator, mock_classifier)
-    assert mock_logger.error.called # 오류 로깅 확인
-    mock_torchaudio_load.assert_not_called() # 임베딩 작업이 수행되지 않았는지 확인
+def test_convert_ffmpeg_failure(env, mocker):
+    temp = env / "t.webm"
+    temp.write_bytes(b"x")
+    mocker.patch('processing.subprocess.run',
+                 side_effect=subprocess.CalledProcessError(1, "ffmpeg", stderr="e"))
+    assert processing.convert_to_mp3(str(temp), str(env / "r.mp3")) is None
 
-def test_process_url_no_valid_chunks(
-    mocker, mock_os_path_exists, mock_separator, mock_classifier, mock_torchaudio_load, mock_yt_dlp
-):
-    """유효한 오디오 청크가 없을 때 오류 로깅 후 종료하는지 테스트"""
-    video_id = "dQw4w9WgXcQ"
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    artist_name = "ArtistX"
-    artist_dir = os.path.join(config.DB_DIR, artist_name)
-    raw_path = os.path.join(artist_dir, f"raw_{video_id}.mp3")
-    vocal_path = os.path.join(artist_dir, f"vocal_{video_id}.mp3")
 
-    mock_os_path_exists.side_effect = lambda path: path == vocal_path # 보컬 파일만 존재
-    mock_yt_dlp.return_value.__enter__.return_value.download.return_value = None
-    mocker.patch('torch.save', return_value=None)
+# ---------- process_audio ----------
+def _prepare_vocal(env):
+    artist = env / "A"
+    artist.mkdir()
+    raw = artist / f"raw_{VID}.mp3"
+    raw.write_bytes(b"x")
+    (artist / f"vocal_{VID}.mp3").write_bytes(b"x")
+    return artist, raw
 
-    # torchaudio.load가 반환하는 waveform을 VAD 임계값을 통과하지 못하게 설정
-    mock_waveform = torch.zeros(1, config.SR * 10) # 모든 값이 0인 waveform
-    mocker.patch('torchaudio.load', return_value=(mock_waveform, config.SR))
 
-    processing.process_url(url, artist_name, mock_separator, mock_classifier)
-    assert mock_logger.warning.called # 경고 로깅 확인
-    mock_classifier.encode_batch.assert_not_called() # 임베딩 작업이 수행되지 않았는지 확인
+def test_process_missing_raw_does_nothing(env):
+    classifier = MagicMock()
+    processing.process_audio(str(env / "nope.mp3"), classifier, "A", URL)
+    classifier.encode_batch.assert_not_called()
 
+
+def test_process_skips_when_embedding_exists(env):
+    artist, raw = _prepare_vocal(env)
+    (artist / f"emb_{VID}.pt").write_bytes(b"x")
+    classifier = MagicMock()
+    processing.process_audio(str(raw), classifier, "A", URL)
+    classifier.encode_batch.assert_not_called()
+
+
+def test_process_extracts_and_saves_embedding(env, mocker):
+    artist, raw = _prepare_vocal(env)
+    mocker.patch('processing.torchaudio.load',
+                 return_value=(torch.randn(1, 16000 * 10), 16000))
+    classifier = MagicMock()
+    classifier.encode_batch.return_value = torch.randn(2, 1, 8)
+
+    processing.process_audio(str(raw), classifier, "A", URL)
+
+    emb = torch.load(artist / f"emb_{VID}.pt", weights_only=True)
+    assert emb.shape == (8,)
+
+
+def test_process_silent_audio_saves_nothing(env, mocker):
+    artist, raw = _prepare_vocal(env)
+    mocker.patch('processing.torchaudio.load',
+                 return_value=(torch.zeros(1, 16000 * 10), 16000))
+    classifier = MagicMock()
+    processing.process_audio(str(raw), classifier, "A", URL)
+    classifier.encode_batch.assert_not_called()
+    assert not (artist / f"emb_{VID}.pt").exists()

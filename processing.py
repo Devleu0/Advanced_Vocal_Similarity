@@ -5,6 +5,10 @@ import config
 import glob
 import subprocess
 from utils import extract_video_id
+from fingerprint import (
+    prepare_waveform, split_into_chunks, filter_silent_chunks,
+    encode_chunks, aggregate_embeddings,
+)
 from logger import log
 from demucs.separate import main as demucs_main
 import shutil
@@ -180,27 +184,18 @@ def process_audio(raw_path, classifier, artist_name, url):
         log.info(f"  [Process 1/2 Skip] 분리된 보컬 오디오가 이미 존재합니다: {Path(vocal_path).name}")
 
     if not os.path.exists(vocal_path):
-        log.error(f"  [오류] 분리된 보컬 파일을 찾을 수 없어 지문 추출을 진행할 수 없습니다.")
+        log.error("  [오류] 분리된 보컬 파일을 찾을 수 없어 지문 추출을 진행할 수 없습니다.")
         return
 
     # 2. 지문 추출 (Fingerprint Extraction)
     log.info(f"  [Process 2/2] 지문 추출 및 최적화 진행 중: {Path(vocal_path).name}")
     try:
         waveform, sr = torchaudio.load(vocal_path)
-        if sr != config.SR:
-            waveform = torchaudio.functional.resample(waveform, orig_freq=sr, new_freq=config.SR)
-        if waveform.shape[0] > 1:
-            waveform = torch.mean(waveform, dim=0, keepdim=True)
-        
-        waveform = waveform / (waveform.abs().max() + 1e-8)
-        chunk_size = config.SR * config.CHUNK_SEC
-        chunks = list(torch.split(waveform, chunk_size, dim=1))
-        
-        if chunks and chunks[-1].shape[1] < config.SR * 1:
-            chunks = chunks[:-1]
+        waveform = prepare_waveform(waveform, sr, config.SR)
+        chunks = split_into_chunks(waveform, config.SR, config.CHUNK_SEC)
 
         if config.USE_VAD:
-            valid_chunks = [chunk for chunk in chunks if torch.sqrt(torch.mean(chunk ** 2)) >= config.VAD_RMS_THRESHOLD]
+            valid_chunks = filter_silent_chunks(chunks, config.VAD_RMS_THRESHOLD)
             log.info(f"  -> VAD 적용 후 청크 수: {len(chunks)} -> {len(valid_chunks)}")
         else:
             valid_chunks = chunks
@@ -210,32 +205,17 @@ def process_audio(raw_path, classifier, artist_name, url):
             log.warning(f"  [주의] 유효한 오디오 구간이 없습니다 ({Path(vocal_path).name}).")
             return
 
-        batch_chunks = torch.stack(valid_chunks).squeeze(1).to(config.DEVICE)
-        
-        with torch.no_grad():
-            embs_tensor = classifier.encode_batch(batch_chunks).squeeze().cpu()
-            if embs_tensor.dim() == 1:
-                embs_tensor = embs_tensor.unsqueeze(0)
+        embs_tensor = encode_chunks(valid_chunks, classifier, config.DEVICE)
+        final_embedding, kept = aggregate_embeddings(
+            embs_tensor, config.USE_OUTLIER_REMOVAL, config.EMB_TOP_K_RATIO
+        )
+        log.info(f"  -> 임베딩 집계: {kept}/{len(embs_tensor)}개 사용 (이상치 제거={config.USE_OUTLIER_REMOVAL})")
 
-        if config.USE_OUTLIER_REMOVAL:
-            mean_emb_temp = embs_tensor.mean(dim=0, keepdim=True)
-            sims = torch.nn.functional.cosine_similarity(embs_tensor, mean_emb_temp)
-            
-            k = max(1, int(config.EMB_TOP_K_RATIO * len(embs_tensor)))
-            top_indices = torch.topk(sims, k).indices
-            refined_embs = embs_tensor[top_indices]
-            
-            final_embedding = refined_embs.mean(dim=0)
-            log.info(f"  -> 이상치 제거 적용: 상위 {k}/{len(embs_tensor)}개 임베딩 사용")
-        else:
-            final_embedding = embs_tensor.mean(dim=0)
-            log.info(f"  -> 이상치 제거 비활성화: 전체 {len(embs_tensor)}개 임베딩 평균 사용")
-        
         torch.save(final_embedding, emb_path)
         log.info(f"  -> 최종 지문 저장 완료: {Path(emb_path).name}")
 
     except Exception as e:
         log.error(f"  [오류] 지문 추출 실패 ({Path(vocal_path).name}): {e}", exc_info=True)
     finally:
-        if config.DEVICE == "cuda":
+        if str(config.DEVICE).startswith("cuda"):
             torch.cuda.empty_cache()

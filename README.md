@@ -1,6 +1,6 @@
 # Advanced Vocal Similarity (음성 유사도 분석)
 
-[![Python CI](https://github.com/dnlwj/Advanced_Vocal_Similarity/actions/workflows/ci.yml/badge.svg)](https://github.com/dnlwj/Advanced_Vocal_Similarity/actions/workflows/ci.yml)
+[![Python CI](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml/badge.svg)](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml)
 
 **Advanced Vocal Similarity**는 여러 유튜브 영상에 등장하는 인물들의 목소리를 분석하여 서로 얼마나 유사한지 측정하고 시각화하는 파이프라인입니다. 딥러닝 기반의 음성 분석 모델을 사용하여 각 영상의 오디오에서 보컬 "지문(fingerprint)"을 추출하고, 이를 상호 비교하여 유사도 점수를 계산합니다.
 
@@ -21,24 +21,35 @@
 3.  **처리 (Processing)**:
     - **보컬 분리**: `demucs`를 이용해 오디오에서 보컬 트랙을 분리합니다.
     - **지문 추출**: 분리된 보컬 트랙을 작은 조각(chunk)으로 나누고, `SpeechBrain` 모델로 각 조각의 임베딩을 추출한 뒤, 평균을 내어 해당 영상의 최종 음성 지문을 생성합니다.
-4.  **분석 및 시각화 (Analysis & Visualization)**: 모든 음성 지문 간의 코사인 유사도를 계산하고, `seaborn`과 `matplotlib`을 사용해 결과를 히트맵(`similarity_matrix.png`)으로 저장합니다.
+4.  **분석 및 시각화 (Analysis & Visualization)**: 모든 음성 지문 간의 코사인 유사도를 계산하고, `seaborn`과 `matplotlib`을 사용해 결과를 히트맵(`database/vocal_clustermap.png`)으로 저장합니다.
 
 ## 📂 프로젝트 구조
+
+모듈 책임과 협업 가이드는 [ARCHITECTURE.md](ARCHITECTURE.md) 를 참고하세요.
 
 ```
 .
 ├── inputs/            # 분석할 유튜브 URL 목록 (txt 파일)을 이곳에 추가
 │   └── artist_A.txt
 ├── database/          # 처리 과정에서 생성된 파일들이 저장되는 공간
-│   └── artist_A/
-│       ├── raw_{vid}.mp3       # 원본 오디오
-│       ├── vocal_{vid}.mp3     # 분리된 보컬
-│       └── emb_{vid}.pt        # 추출된 음성 지문 (임베딩)
+│   ├── artist_A/
+│   │   ├── raw_{vid}.mp3       # 원본 오디오
+│   │   ├── vocal_{vid}.mp3     # 분리된 보컬
+│   │   └── emb_{vid}.pt        # 추출된 음성 지문 (임베딩)
+│   ├── vocal_similarities.txt  # 유사도 행렬 (텍스트)
+│   └── vocal_clustermap.png    # 최종 결과물 (클러스터맵)
 ├── config.py          # 프로젝트의 모든 설정을 관리하는 파일
 ├── main.py            # 메인 파이프라인 실행 스크립트
+├── processing.py      # 다운로드/변환/보컬 분리 (I/O 오케스트레이션)
+├── fingerprint.py     # 청킹·VAD·임베딩 집계 등 순수 함수 (테스트 용이)
+├── similarity.py      # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
+├── visualization.py   # 임베딩 로드 및 히트맵·텍스트 출력
+├── models.py          # SpeechBrain 모델 로더
+├── utils.py           # 한글 폰트 설정, 비디오 ID 추출
+├── logger.py          # 로깅 설정
+├── tests/             # pytest 단위 테스트
 ├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트
-├── requirements.txt   # 필요한 Python 라이브러리 목록
-└── similarity_matrix.png # 최종 결과물인 유사도 행렬 이미지
+└── requirements.txt   # 필요한 Python 라이브러리 목록
 ```
 
 ## 설치
@@ -65,7 +76,7 @@ run.bat
 
 ```bash
 # 1. Git 저장소를 복제합니다.
-git clone https://github.com/your-username/Advanced_Vocal_Similarity.git
+git clone https://github.com/Devleu0/Advanced_Vocal_Similarity.git
 cd Advanced_Vocal_Similarity
 
 # 2. Python 가상 환경을 생성하고 활성화합니다.
@@ -86,7 +97,7 @@ pip install -r requirements.txt
 1.  `inputs` 폴더 안에 `아티스트명.txt` 형식의 텍스트 파일을 생성합니다. (예: `iu.txt`)
 2.  해당 파일 안에 분석하고 싶은 유튜브 영상의 URL을 한 줄에 하나씩 추가합니다.
 3.  `run.bat`를 실행하거나, 터미널에서 `python main.py` 명령을 실행합니다.
-4.  처리가 완료되면 프로젝트 루트 디렉토리에 결과물인 `similarity_matrix.png` 파일이 생성됩니다.
+4.  처리가 완료되면 `database/vocal_clustermap.png` 와 `database/vocal_similarities.txt` 가 생성됩니다.
 
 ## 설정 (Configuration)
 
@@ -121,19 +132,18 @@ pip install -r requirements-dev.txt
 
 ### 코드 스타일 검사 (Linting)
 
-코드를 커밋하기 전, `ruff`를 사용하여 코드 스타일과 잠재적인 오류를 검사하세요.
-
 ```bash
 ruff check .
 ```
 
 ### 테스트 실행
 
-`pytest`를 사용하여 `tests/` 폴더에 있는 모든 테스트를 실행할 수 있습니다.
-
 ```bash
 python -m pytest tests/
 ```
+
+- 알고리즘 로직(`fingerprint.py`, `similarity.py`)은 합성 텐서로 테스트합니다.
+- `processing.py` 테스트는 `subprocess`/`torchaudio` 를 mock 하며, demucs 가 없어도 `tests/conftest.py` 의 스텁으로 실행됩니다.
 
 ## 라이선스
 
