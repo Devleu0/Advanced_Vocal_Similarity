@@ -1,5 +1,4 @@
 import os
-import os
 import glob
 import torch
 import pandas as pd
@@ -7,6 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import config
 from logger import log
+from similarity import build_master_profile, compute_similarity_matrix
 
 def generate_and_visualize_similarity():
     """
@@ -28,9 +28,7 @@ def generate_and_visualize_similarity():
         
         try:
             embs = [torch.load(f, weights_only=True) for f in emb_files]
-            master_emb = torch.stack(embs).mean(dim=0)
-            master_emb = torch.nn.functional.normalize(master_emb, p=2, dim=0)
-            master_profiles[artist_name] = master_emb
+            master_profiles[artist_name] = build_master_profile(embs)
         except Exception as e:
             log.error(f"  [오류] '{artist_name}'의 프로필 생성 중 에러 발생: {e}", exc_info=True)
             continue
@@ -39,16 +37,7 @@ def generate_and_visualize_similarity():
         log.warning("[!] 비교할 가수가 2명 이상이어야 시각화가 가능합니다.")
         return
 
-    artists = list(master_profiles.keys())
-    matrix = torch.zeros((len(artists), len(artists)))
-
-    for i, a1 in enumerate(artists):
-        for j, a2 in enumerate(artists):
-            sim = torch.nn.functional.cosine_similarity(
-                master_profiles[a1].unsqueeze(0), 
-                master_profiles[a2].unsqueeze(0)
-            )
-            matrix[i, j] = sim.item()
+    artists, matrix = compute_similarity_matrix(master_profiles)
 
     df = pd.DataFrame(matrix.numpy(), index=artists, columns=artists)
     
@@ -74,4 +63,3 @@ def generate_and_visualize_similarity():
     g.savefig(png_path, dpi=300, bbox_inches='tight') 
     plt.close('all') 
     log.info(f"  -> 시각화 결과물 저장: {png_path}")
-
