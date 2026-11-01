@@ -4,7 +4,7 @@ import torchaudio
 import config
 import glob
 import subprocess
-from utils import extract_video_id
+from utils import get_media_id, normalize_download_url
 import cache
 from fingerprint import (
     prepare_waveform, split_into_chunks, filter_silent_chunks, filter_by_speech_ratio,
@@ -18,11 +18,11 @@ from pathlib import Path
 
 def download_original_audio(url, artist_name):
     """
-    yt-dlp를 사용하여 원본 오디오를 임시 폴더에 다운로드합니다.
+    yt-dlp를 사용하여 원본 오디오를 임시 폴더에 다운로드합니다. (yt-dlp 지원 사이트 전반)
     """
-    vid = extract_video_id(url)
+    vid = get_media_id(url)
     if not vid:
-        log.error(f"  [오류] 올바르지 않은 유튜브 URL 형식입니다: {url}")
+        log.error(f"  [오류] 올바르지 않은 영상 URL 형식입니다: {url}")
         return None, None
 
     artist_dir = os.path.join(config.DB_DIR, artist_name)
@@ -45,8 +45,8 @@ def download_original_audio(url, artist_name):
 
     log.info(f"  [Download] 원본 오디오 다운로드 시작: {url}")
     
-    # 항상 안정적인 다운로드를 위해 URL을 정규화합니다.
-    clean_url = f"https://www.youtube.com/watch?v={vid}"
+    # 유튜브는 안정적인 다운로드를 위해 URL을 정규화합니다. (그 외 사이트는 원본 URL 사용)
+    clean_url = normalize_download_url(url, vid)
     log.debug(f"  -> 정규화된 URL: {clean_url}")
 
     try:
@@ -228,7 +228,7 @@ def process_audio(raw_path, classifier, artist_name, url, model=None):
     바뀌었으면 해당 단계부터 다시 만듭니다.
     """
     model = model or config.EMBEDDING_MODEL
-    vid = extract_video_id(url)
+    vid = get_media_id(url)
     if not raw_path or not os.path.exists(raw_path):
         log.error(f"  [Process Error] 원본 오디오 파일이 없습니다: {raw_path}")
         return
