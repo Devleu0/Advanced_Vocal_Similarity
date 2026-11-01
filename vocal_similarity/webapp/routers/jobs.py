@@ -2,9 +2,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from webapp.dependencies import get_job_manager
-from webapp.schemas import JobCreate, JobOut
-from webapp.services.jobs import JobBusyError, JobManager
+from ..dependencies import get_job_manager
+from ..schemas import JobCreate, JobOut
+from ..services.jobs import JobBusyError, JobManager
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 

@@ -1,14 +1,15 @@
-import os
 import glob
+import os
 from typing import Dict, Optional
 
-import torch
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
-import config
-from logger import log
-from similarity import build_master_profile, compute_similarity_matrix
+import torch
+
+from . import config
+from .logger import log
+from .similarity import build_master_profile, compute_similarity_matrix
 
 SIMILARITY_TXT_NAME = "vocal_similarities.txt"
 CLUSTERMAP_PNG_NAME = "vocal_clustermap.png"

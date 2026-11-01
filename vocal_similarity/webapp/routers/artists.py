@@ -2,11 +2,11 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from input_store import InvalidArtistName
-from webapp.dependencies import get_artist_service, get_job_manager
-from webapp.schemas import ArtistIn, ArtistOut
-from webapp.services.artists import ArtistService, InvalidUrls
-from webapp.services.jobs import JobManager
+from ...input_store import InvalidArtistName
+from ..dependencies import get_artist_service, get_job_manager
+from ..schemas import ArtistIn, ArtistOut
+from ..services.artists import ArtistService, InvalidUrls
+from ..services.jobs import JobManager
 
 router = APIRouter(prefix="/api/artists", tags=["artists"])
 

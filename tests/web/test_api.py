@@ -2,9 +2,9 @@ import pytest
 import torch
 
 pytest.importorskip("fastapi")
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from webapp.app import create_app  # noqa: E402
+from vocal_similarity.webapp.app import create_app
 
 URL_A = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
 URL_B = "https://youtu.be/bbbbbbbbbbb"
@@ -15,8 +15,8 @@ def dirs(tmp_path, mocker):
     inputs, db = tmp_path / "inputs", tmp_path / "database"
     inputs.mkdir()
     db.mkdir()
-    mocker.patch("config.INPUT_DIR", str(inputs))
-    mocker.patch("config.DB_DIR", str(db))
+    mocker.patch("vocal_similarity.config.INPUT_DIR", str(inputs))
+    mocker.patch("vocal_similarity.config.DB_DIR", str(db))
     return inputs, db
 
 

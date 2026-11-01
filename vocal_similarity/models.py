@@ -1,6 +1,8 @@
 from speechbrain.inference.speaker import EncoderClassifier
-import config
-from logger import log
+
+from . import config
+from .logger import log
+
 
 def load_speech_brain_model():
     """SpeechBrain ECAPA-TDNN 모델을 로드합니다."""

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse, Response
 
-from webapp.dependencies import get_result_service
-from webapp.schemas import SimilarityOut
-from webapp.services.results import ResultService
+from ..dependencies import get_result_service
+from ..schemas import SimilarityOut
+from ..services.results import ResultService
 
 router = APIRouter(prefix="/api/results", tags=["results"])
 

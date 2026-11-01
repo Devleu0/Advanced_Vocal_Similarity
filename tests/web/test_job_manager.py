@@ -2,8 +2,13 @@ import threading
 
 import pytest
 
-from logger import log
-from webapp.services.jobs import JobBusyError, JobCancelled, JobManager, JobStatus
+from vocal_similarity.logger import log
+from vocal_similarity.webapp.services.jobs import (
+    JobBusyError,
+    JobCancelled,
+    JobManager,
+    JobStatus,
+)
 
 
 def test_successful_job_collects_progress_and_logs():

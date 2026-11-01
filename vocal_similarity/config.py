@@ -1,8 +1,9 @@
 import os
+
 import torch
 
 # === [ Path Configuration ] ===
-BASE_DIR = os.getcwd()
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INPUT_DIR = os.path.join(BASE_DIR, "inputs")
 DB_DIR = os.path.join(BASE_DIR, "database")
 PRETRAINED_MODELS_DIR = os.path.join(BASE_DIR, "pretrained_models")

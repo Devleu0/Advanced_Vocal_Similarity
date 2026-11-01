@@ -3,7 +3,7 @@ import argparse
 
 import uvicorn
 
-from webapp.app import create_app
+from vocal_similarity.webapp.app import create_app
 
 
 def main() -> None:

@@ -1,13 +1,15 @@
-import pytest
 from unittest.mock import MagicMock
-from utils import extract_video_id, is_youtube_url, setup_korean_font
-import matplotlib.pyplot as plt
+
 import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
+import pytest
+
+from vocal_similarity.utils import extract_video_id, is_youtube_url, setup_korean_font
 
 
 @pytest.fixture(autouse=True)
 def mock_logger(mocker):
-    mocker.patch('utils.log', new=MagicMock())
+    mocker.patch('vocal_similarity.utils.log', new=MagicMock())
 
 
 @pytest.mark.parametrize("url", [

@@ -1,6 +1,6 @@
 import pytest
 
-import input_store
+from vocal_similarity import input_store
 
 
 def test_write_and_list_roundtrip(tmp_path):

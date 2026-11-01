@@ -10,9 +10,8 @@ import shutil
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import config
-import input_store
-from utils import extract_video_id, is_youtube_url
+from ... import config, input_store
+from ...utils import extract_video_id, is_youtube_url
 
 # URL 별 처리 상태 (진행 순서대로)
 STATUS_INVALID = "invalid"      # 유튜브 URL 형식 아님

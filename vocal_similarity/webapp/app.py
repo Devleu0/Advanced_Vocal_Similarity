@@ -7,10 +7,10 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from webapp.routers import artists, jobs, results
-from webapp.services.artists import ArtistService
-from webapp.services.jobs import JobManager, Runner
-from webapp.services.results import ResultService
+from .routers import artists, jobs, results
+from .services.artists import ArtistService
+from .services.jobs import JobManager, Runner
+from .services.results import ResultService
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
@@ -18,7 +18,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 def create_app(runner: Optional[Runner] = None) -> FastAPI:
     """앱을 생성합니다. runner 를 주입하면 실제 파이프라인 대신 사용합니다 (테스트/데모용)."""
     if runner is None:
-        from webapp.services.runner import PipelineRunner
+        from .services.runner import PipelineRunner
         runner = PipelineRunner()
 
     app = FastAPI(title="Advanced Vocal Similarity", version="1.0.0")

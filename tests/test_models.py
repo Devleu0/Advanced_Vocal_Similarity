@@ -1,13 +1,14 @@
-import pytest
 from unittest.mock import MagicMock
-import models
-import config
+
+import pytest
+
+from vocal_similarity import config, models
 
 
 @pytest.fixture
 def mock_from_hparams(mocker):
     """SpeechBrain EncoderClassifier.from_hparams 를 모의(mock)합니다."""
-    mocker.patch('models.log', new=MagicMock())
+    mocker.patch('vocal_similarity.models.log', new=MagicMock())
     return mocker.patch.object(
         models.EncoderClassifier, 'from_hparams', return_value=MagicMock()
     )

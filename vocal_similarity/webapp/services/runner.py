@@ -9,7 +9,7 @@ from __future__ import annotations
 import threading
 from typing import List, Optional
 
-from webapp.services.jobs import CancelCheck, JobCancelled, ProgressCallback
+from .jobs import CancelCheck, JobCancelled, ProgressCallback
 
 STAGE_MODEL = "model"
 
@@ -22,16 +22,16 @@ class PipelineRunner:
     def _get_classifier(self):
         with self._lock:
             if self._classifier is None:
-                from models import load_speech_brain_model
+                from ...models import load_speech_brain_model
                 self._classifier = load_speech_brain_model()
             return self._classifier
 
     def __call__(self, artists: Optional[List[str]],
                  on_progress: ProgressCallback, should_cancel: CancelCheck) -> None:
-        import config
-        from logger import log
-        from pipeline import PipelineCancelled, collect_tasks, run_pipeline
-        from utils import setup_korean_font
+        from ... import config
+        from ...logger import log
+        from ...pipeline import PipelineCancelled, collect_tasks, run_pipeline
+        from ...utils import setup_korean_font
 
         tasks = collect_tasks(config.INPUT_DIR, artists)
         if not tasks:

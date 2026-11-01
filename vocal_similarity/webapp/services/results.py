@@ -21,7 +21,7 @@ class SimilarityResult:
 class ResultService:
     def similarity(self) -> SimilarityResult:
         # 무거운 모듈(torch/seaborn)은 실제로 결과를 요청할 때만 import 합니다.
-        from visualization import build_similarity_dataframe, load_master_profiles
+        from ...visualization import build_similarity_dataframe, load_master_profiles
 
         profiles = load_master_profiles()
         if not profiles:
@@ -40,7 +40,7 @@ class ResultService:
         return buf.getvalue()
 
     def clustermap_path(self) -> Optional[str]:
-        from visualization import clustermap_path
+        from ...visualization import clustermap_path
 
         path = clustermap_path()
         return path if os.path.exists(path) else None

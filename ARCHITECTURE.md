@@ -1,29 +1,33 @@
 # Architecture
 
-파이프라인은 **I/O 계층**과 **순수 로직 계층**으로 분리되어 있고, CLI 와 웹 UI 는
-같은 오케스트레이션(`pipeline.py`)을 공유하는 얇은 **프런트엔드**입니다.
+애플리케이션 코드는 `vocal_similarity/` 패키지에 모으고, 입력·산출물·모델 파일과
+실행 스크립트는 저장소 루트에 둡니다. CLI 와 웹 UI 는 같은 오케스트레이션
+(`vocal_similarity/pipeline.py`)을 공유하는 얇은 **프런트엔드**입니다.
 
 ```
-main.py (CLI)          web.py → webapp/ (Web UI)
-      \                  /
-       pipeline.py       오케스트레이션: 단계 실행 순서, 진행 콜백, 취소
-       ├─ input_store.py      입력 파일(inputs/<아티스트>.txt) 포맷·이름 검증
-       ├─ processing.py       I/O: yt-dlp 다운로드, ffmpeg 변환, demucs 보컬 분리, 임베딩 저장
-       │   └─ fingerprint.py      순수 로직: 리샘플/모노/정규화, 청킹, VAD, 임베딩 집계(이상치 제거)
-       └─ visualization.py    I/O: 임베딩 로드, txt/clustermap 저장
-           └─ similarity.py       순수 로직: 마스터 프로필, 코사인 유사도 행렬
+main.py (호환 CLI 진입점)      web.py (웹 UI 진입점)
+         \                      /
+          vocal_similarity/
+          ├─ main.py             CLI 실행 로직
+          ├─ pipeline.py         단계 순서, 진행 콜백, 취소
+          ├─ input_store.py      inputs/<아티스트>.txt 포맷·이름 검증
+          ├─ processing.py       yt-dlp/ffmpeg/demucs I/O 및 임베딩 저장
+          │   └─ fingerprint.py  순수 로직: 전처리, 청킹, VAD, 임베딩 집계
+          ├─ visualization.py    임베딩 로드, 유사도 출력/시각화
+          │   └─ similarity.py   순수 로직: 프로필·코사인 유사도 행렬
+          └─ webapp/              FastAPI 라우터·서비스·정적 파일
 ```
 
 - `fingerprint.py`, `similarity.py` 는 `config`/파일시스템에 의존하지 않고 인자만 받으므로 `tests/` 에서 합성 텐서로 단위 테스트합니다.
 - 알고리즘(VAD, 이상치 제거, 유사도 계산)을 바꿀 때는 위 두 모듈과 해당 테스트만 수정하면 됩니다.
-- 새 단계를 추가할 때는 순수 로직은 별도 모듈로 두고, `processing.py` 는 호출만 하도록 유지하세요.
-  단계 순서는 `pipeline.run_pipeline` 에 추가하면 CLI·웹 UI 모두에 반영됩니다
-  (웹 진행 표시는 `webapp/static/js/jobs.js` 의 `STAGES` 에 같은 키를 추가).
+- 새 단계를 추가할 때는 순수 로직은 별도 모듈로 두고, `vocal_similarity/processing.py` 는 호출만 하도록 유지하세요.
+  단계 순서는 `vocal_similarity.pipeline.run_pipeline` 에 추가하면 CLI·웹 UI 모두에 반영됩니다
+  (웹 진행 표시는 `vocal_similarity/webapp/static/js/jobs.js` 의 `STAGES` 에 같은 키를 추가).
 
-## Web UI (`webapp/`)
+## Web UI (`vocal_similarity/webapp/`)
 
 ```
-webapp/
+vocal_similarity/webapp/
 ├─ app.py            create_app(runner=None): 서비스 생성 → app.state, 라우터·정적 파일 등록
 ├─ dependencies.py   app.state 의 서비스를 FastAPI Depends 로 주입
 ├─ schemas.py        요청/응답 모델 (서비스 dataclass ↔ JSON)
@@ -49,5 +53,5 @@ webapp/
 - **주입 가능한 runner**: `JobManager(runner)` 는 `runner(artists, on_progress, should_cancel)` 만 호출합니다.
   테스트는 `create_app(runner=fake)` 로 torch/speechbrain/demucs 없이 API 를 검증합니다.
 - **동시 실행 1개**: 파이프라인은 GPU·같은 산출물 파일을 공유하므로 실행 중 새 작업 요청은 409 를 반환합니다.
-- **경로는 호출 시점의 `config` 값 사용**: 테스트에서 `config.INPUT_DIR`/`config.DB_DIR` 를 패치해 격리합니다.
+- **경로는 호출 시점의 `config` 값 사용**: 테스트에서 `vocal_similarity.config.INPUT_DIR`/`DB_DIR` 를 패치해 격리합니다.
 - **프런트엔드는 패널별 ES 모듈**: 서버 호출은 `api.js` 한 곳에서만, DOM 텍스트는 `textContent` 로만 삽입(XSS 방지).

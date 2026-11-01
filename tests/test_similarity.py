@@ -1,6 +1,6 @@
 import torch
 
-import similarity as sim
+from vocal_similarity import similarity as sim
 
 
 def test_master_profile_is_unit_norm():

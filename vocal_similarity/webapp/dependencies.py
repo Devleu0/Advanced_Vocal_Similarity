@@ -1,9 +1,9 @@
 """FastAPI 의존성: 서비스 인스턴스는 `app.state` 에 보관되어 테스트에서 쉽게 교체됩니다."""
 from fastapi import Request
 
-from webapp.services.artists import ArtistService
-from webapp.services.jobs import JobManager
-from webapp.services.results import ResultService
+from .services.artists import ArtistService
+from .services.jobs import JobManager
+from .services.results import ResultService
 
 
 def get_artist_service(request: Request) -> ArtistService:

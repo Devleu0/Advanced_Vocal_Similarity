@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from webapp.services.artists import Artist
-from webapp.services.jobs import Job
+from .services.artists import Artist
+from .services.jobs import Job
 
 
 class UrlStatusOut(BaseModel):

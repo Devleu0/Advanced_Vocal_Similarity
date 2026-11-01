@@ -1,18 +1,24 @@
+import glob
 import os
+import shutil
+import subprocess
+from pathlib import Path
+
 import torch
 import torchaudio
-import config
-import glob
-import subprocess
-from utils import extract_video_id
-from fingerprint import (
-    prepare_waveform, split_into_chunks, filter_silent_chunks,
-    encode_chunks, aggregate_embeddings,
-)
-from logger import log
 from demucs.separate import main as demucs_main
-import shutil
-from pathlib import Path
+
+from . import config
+from .fingerprint import (
+    aggregate_embeddings,
+    encode_chunks,
+    filter_silent_chunks,
+    prepare_waveform,
+    split_into_chunks,
+)
+from .logger import log
+from .utils import extract_video_id
+
 
 def download_original_audio(url, artist_name):
     """

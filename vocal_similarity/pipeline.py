@@ -10,11 +10,11 @@ import os
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional
 
-import config
-from input_store import list_artists
-from logger import log
-from processing import convert_to_mp3, download_original_audio, process_audio
-from visualization import generate_and_visualize_similarity
+from . import config
+from .input_store import list_artists
+from .logger import log
+from .processing import convert_to_mp3, download_original_audio, process_audio
+from .visualization import generate_and_visualize_similarity
 
 # 단계 식별자 (진행 콜백의 stage 값). UI 는 이 값으로 단계 이름을 표시합니다.
 STAGE_DOWNLOAD = "download"

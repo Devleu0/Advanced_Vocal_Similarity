@@ -1,19 +1,21 @@
+from unittest.mock import MagicMock
+
 import pytest
 import torch
-from unittest.mock import MagicMock
-import visualization
+
+from vocal_similarity import visualization
 
 
 @pytest.fixture
 def db(tmp_path, mocker):
     """임시 DB 디렉터리를 config.DB_DIR 로 사용합니다 (실제 파일 사용)."""
-    mocker.patch('config.DB_DIR', str(tmp_path))
+    mocker.patch('vocal_similarity.config.DB_DIR', str(tmp_path))
     return tmp_path
 
 
 @pytest.fixture
 def clustermap(mocker):
-    return mocker.patch('visualization.sns.clustermap', return_value=MagicMock())
+    return mocker.patch('vocal_similarity.visualization.sns.clustermap', return_value=MagicMock())
 
 
 def _add_artist(db, name, n_embs=1):

@@ -1,7 +1,8 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-import config
+
+from . import config
 
 LOG_FILE = os.path.join(config.BASE_DIR, 'pipeline.log')
 

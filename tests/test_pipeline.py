@@ -1,18 +1,17 @@
 import pytest
 
-import input_store
-import pipeline
+from vocal_similarity import input_store, pipeline
 
 
 @pytest.fixture
 def steps(mocker):
     """processing / visualization 단계를 mock 하여 오케스트레이션만 검증합니다."""
     return {
-        "download": mocker.patch("pipeline.download_original_audio", return_value=("tmp.webm", "raw.mp3")),
-        "convert": mocker.patch("pipeline.convert_to_mp3", return_value="raw.mp3"),
-        "process": mocker.patch("pipeline.process_audio"),
-        "analyze": mocker.patch("pipeline.generate_and_visualize_similarity"),
-        "exists": mocker.patch("pipeline.os.path.exists", return_value=True),
+        "download": mocker.patch("vocal_similarity.pipeline.download_original_audio", return_value=("tmp.webm", "raw.mp3")),
+        "convert": mocker.patch("vocal_similarity.pipeline.convert_to_mp3", return_value="raw.mp3"),
+        "process": mocker.patch("vocal_similarity.pipeline.process_audio"),
+        "analyze": mocker.patch("vocal_similarity.pipeline.generate_and_visualize_similarity"),
+        "exists": mocker.patch("vocal_similarity.pipeline.os.path.exists", return_value=True),
     }
 
 

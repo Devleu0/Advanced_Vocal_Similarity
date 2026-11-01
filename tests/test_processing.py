@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
-import processing
+from vocal_similarity import processing
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 VID = "dQw4w9WgXcQ"
@@ -13,9 +13,9 @@ VID = "dQw4w9WgXcQ"
 
 @pytest.fixture(autouse=True)
 def env(tmp_path, mocker):
-    mocker.patch('config.DB_DIR', str(tmp_path))
-    mocker.patch('config.DEVICE', 'cpu')
-    mocker.patch('processing.log', new=MagicMock())
+    mocker.patch('vocal_similarity.config.DB_DIR', str(tmp_path))
+    mocker.patch('vocal_similarity.config.DEVICE', 'cpu')
+    mocker.patch('vocal_similarity.processing.log', new=MagicMock())
     return tmp_path
 
 
@@ -40,7 +40,7 @@ def test_download_success(mocker):
         Path(out).write_bytes(b"audio")
         return MagicMock(stdout="")
 
-    run = mocker.patch('processing.subprocess.run', side_effect=fake_run)
+    run = mocker.patch('vocal_similarity.processing.subprocess.run', side_effect=fake_run)
     temp, raw = processing.download_original_audio(URL, "A")
     run.assert_called_once()
     assert temp.endswith(".webm")
@@ -49,7 +49,7 @@ def test_download_success(mocker):
 
 def test_download_failure_returns_none_temp(mocker):
     err = subprocess.CalledProcessError(1, "yt-dlp", stderr="boom")
-    mocker.patch('processing.subprocess.run', side_effect=err)
+    mocker.patch('vocal_similarity.processing.subprocess.run', side_effect=err)
     temp, raw = processing.download_original_audio(URL, "A")
     assert temp is None
     assert raw.endswith(f"raw_{VID}.mp3")
@@ -72,7 +72,7 @@ def test_convert_skips_and_cleans_temp_when_raw_exists(env):
 def test_convert_runs_ffmpeg(env, mocker):
     temp = env / "t.webm"
     temp.write_bytes(b"x")
-    run = mocker.patch('processing.subprocess.run')
+    run = mocker.patch('vocal_similarity.processing.subprocess.run')
     raw = str(env / "r.mp3")
     assert processing.convert_to_mp3(str(temp), raw) == raw
     cmd = run.call_args.args[0]
@@ -82,7 +82,7 @@ def test_convert_runs_ffmpeg(env, mocker):
 def test_convert_ffmpeg_failure(env, mocker):
     temp = env / "t.webm"
     temp.write_bytes(b"x")
-    mocker.patch('processing.subprocess.run',
+    mocker.patch('vocal_similarity.processing.subprocess.run',
                  side_effect=subprocess.CalledProcessError(1, "ffmpeg", stderr="e"))
     assert processing.convert_to_mp3(str(temp), str(env / "r.mp3")) is None
 
@@ -113,7 +113,7 @@ def test_process_skips_when_embedding_exists(env):
 
 def test_process_extracts_and_saves_embedding(env, mocker):
     artist, raw = _prepare_vocal(env)
-    mocker.patch('processing.torchaudio.load',
+    mocker.patch('vocal_similarity.processing.torchaudio.load',
                  return_value=(torch.randn(1, 16000 * 10), 16000))
     classifier = MagicMock()
     classifier.encode_batch.return_value = torch.randn(2, 1, 8)
@@ -126,7 +126,7 @@ def test_process_extracts_and_saves_embedding(env, mocker):
 
 def test_process_silent_audio_saves_nothing(env, mocker):
     artist, raw = _prepare_vocal(env)
-    mocker.patch('processing.torchaudio.load',
+    mocker.patch('vocal_similarity.processing.torchaudio.load',
                  return_value=(torch.zeros(1, 16000 * 10), 16000))
     classifier = MagicMock()
     processing.process_audio(str(raw), classifier, "A", URL)

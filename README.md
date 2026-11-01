@@ -11,7 +11,7 @@
 - **음성 지문 추출**: 최신 음성 인식 모델(ECAPA-TDNN)을 통해 각 보컬의 고유한 특징을 벡터(Embedding)로 추출합니다.
 - **유사도 분석 및 시각화**: 추출된 모든 음성 지문을 상호 비교하여 코사인 유사도를 계산하고, 결과를 히트맵으로 시각화하여 한눈에 파악할 수 있도록 돕습니다.
 - **웹 UI**: 브라우저에서 아티스트/URL 등록, 분석 실행·진행률·로그 확인, 유사도 히트맵·클러스터맵 조회까지 할 수 있습니다. ([웹 UI 사용법](#-웹-ui))
-- **설정 유연성**: `config.py` 파일을 통해 VAD(음성 감지), 이상치 제거, 오디오 품질 등 다양한 처리 옵션을 쉽게 조정할 수 있습니다.
+- **설정 유연성**: `vocal_similarity/config.py` 파일을 통해 VAD(음성 감지), 이상치 제거, 오디오 품질 등 다양한 처리 옵션을 쉽게 조정할 수 있습니다.
 
 ## 작동 방식 (Pipeline)
 
@@ -39,23 +39,24 @@
 │   │   └── emb_{vid}.pt        # 추출된 음성 지문 (임베딩)
 │   ├── vocal_similarities.txt  # 유사도 행렬 (텍스트)
 │   └── vocal_clustermap.png    # 최종 결과물 (클러스터맵)
-├── config.py          # 프로젝트의 모든 설정을 관리하는 파일
-├── main.py            # CLI 진입점 (pipeline.run_pipeline 호출)
-├── web.py             # 웹 UI 진입점 (python web.py)
-├── pipeline.py        # 단계 오케스트레이션 (CLI·웹 공용, 진행 콜백/취소 지원)
-├── input_store.py     # inputs/<아티스트>.txt 읽기·쓰기·이름 검증
-├── processing.py      # 다운로드/변환/보컬 분리 (I/O 오케스트레이션)
-├── fingerprint.py     # 청킹·VAD·임베딩 집계 등 순수 함수 (테스트 용이)
-├── similarity.py      # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
-├── visualization.py   # 임베딩 로드 및 히트맵·텍스트 출력
-├── models.py          # SpeechBrain 모델 로더
-├── utils.py           # 한글 폰트 설정, 비디오 ID 추출
-├── logger.py          # 로깅 설정
-├── webapp/            # 웹 UI (FastAPI + 정적 프런트엔드)
-│   ├── app.py         #   앱 팩토리 (create_app)
-│   ├── routers/       #   HTTP 엔드포인트 (artists / jobs / results)
-│   ├── services/      #   도메인 로직 (입력 관리, 백그라운드 작업, 결과 조회)
-│   └── static/        #   HTML/CSS/ES 모듈 (빌드 단계 없음)
+├── main.py            # 기존 CLI 실행 진입점 (python main.py)
+├── web.py             # 기존 웹 UI 실행 진입점 (python web.py)
+├── vocal_similarity/  # 애플리케이션 Python 패키지
+│   ├── config.py      # 프로젝트 설정
+│   ├── main.py        # CLI 실행 로직
+│   ├── pipeline.py    # 단계 오케스트레이션 (CLI·웹 공용, 진행 콜백/취소 지원)
+│   ├── input_store.py # inputs/<아티스트>.txt 읽기·쓰기·이름 검증
+│   ├── processing.py  # 다운로드/변환/보컬 분리 (I/O 오케스트레이션)
+│   ├── fingerprint.py # 청킹·VAD·임베딩 집계 등 순수 함수 (테스트 용이)
+│   ├── similarity.py  # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
+│   ├── visualization.py # 임베딩 로드 및 히트맵·텍스트 출력
+│   ├── models.py      # SpeechBrain 모델 로더
+│   ├── utils.py       # 한글 폰트 설정, 비디오 ID 추출
+│   ├── logger.py      # 로깅 설정
+│   └── webapp/        # FastAPI 웹 UI 및 정적 프런트엔드
+│       ├── routers/   # HTTP 엔드포인트 (artists / jobs / results)
+│       ├── services/  # 도메인 로직 (입력 관리, 작업, 결과 조회)
+│       └── static/    # HTML/CSS/ES 모듈 (빌드 단계 없음)
 ├── tests/             # pytest 단위 테스트 (tests/web: 웹 계층)
 ├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트 (CLI)
 ├── run_web.bat        # Windows 용 웹 UI 실행 스크립트
@@ -147,7 +148,7 @@ Windows 에서는 `run_web.bat` 을 실행하면 설치 → 서버 실행 → �
 
 ## 설정 (Configuration)
 
-`config.py` 파일에서 파이프라인의 세부 동작을 조정할 수 있습니다.
+`vocal_similarity/config.py` 파일에서 파이프라인의 세부 동작을 조정할 수 있습니다.
 
 | 설정 항목                 | 설명                                                                                                | 기본값                  |
 | ------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
@@ -188,10 +189,10 @@ ruff check .
 python -m pytest tests/
 ```
 
-- 알고리즘 로직(`fingerprint.py`, `similarity.py`)은 합성 텐서로 테스트합니다.
-- `pipeline.py` 테스트는 각 단계를 mock 하여 실행 순서·진행 콜백·취소만 검증합니다.
+- 알고리즘 로직(`vocal_similarity/fingerprint.py`, `vocal_similarity/similarity.py`)은 합성 텐서로 테스트합니다.
+- `vocal_similarity/pipeline.py` 테스트는 각 단계를 mock 하여 실행 순서·진행 콜백·취소만 검증합니다.
 - `tests/web/` 은 가짜 runner 를 주입한 `create_app(runner=...)` 으로 HTTP API 와 작업 상태 전이를 검증합니다 (모델·demucs 불필요).
-- `processing.py` 테스트는 `subprocess`/`torchaudio` 를 mock 하며, demucs 가 없어도 `tests/conftest.py` 의 스텁으로 실행됩니다.
+- `vocal_similarity/processing.py` 테스트는 `subprocess`/`torchaudio` 를 mock 하며, demucs 가 없어도 `tests/conftest.py` 의 스텁으로 실행됩니다.
 
 ## 라이선스
 

@@ -1,7 +1,8 @@
-import torch
 from unittest.mock import MagicMock
 
-import fingerprint as fp
+import torch
+
+from vocal_similarity import fingerprint as fp
 
 
 def test_prepare_waveform_mono_and_peak_normalized():

@@ -1,8 +1,11 @@
 import platform
 import re
 from urllib.parse import urlparse
+
 import matplotlib.pyplot as plt
-from logger import log
+
+from .logger import log
+
 
 def setup_korean_font():
     """
