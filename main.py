@@ -1,12 +1,11 @@
 import os
 import glob
 import config
-from utils import setup_korean_font, extract_video_id
+from utils import setup_korean_font
 from models import load_speech_brain_model
 from processing import download_original_audio, convert_to_mp3, process_audio
 from visualization import generate_and_visualize_similarity
 from logger import log
-from pathlib import Path
 
 def main():
     """
@@ -83,4 +82,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
