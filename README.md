@@ -10,6 +10,7 @@
 - **자동 보컬 분리**: Demucs 모델을 사용하여 배경 음악이나 잡음에서 보컬 목소리만 정확하게 분리합니다.
 - **음성 지문 추출**: 최신 음성 인식 모델(ECAPA-TDNN)을 통해 각 보컬의 고유한 특징을 벡터(Embedding)로 추출합니다.
 - **유사도 분석 및 시각화**: 추출된 모든 음성 지문을 상호 비교하여 코사인 유사도를 계산하고, 결과를 히트맵으로 시각화하여 한눈에 파악할 수 있도록 돕습니다.
+- **웹 UI**: 브라우저에서 아티스트/URL 등록, 분석 실행·진행률·로그 확인, 유사도 히트맵·클러스터맵 조회까지 할 수 있습니다. ([웹 UI 사용법](#-웹-ui))
 - **설정 유연성**: `config.py` 파일을 통해 VAD(음성 감지), 이상치 제거, 오디오 품질 등 다양한 처리 옵션을 쉽게 조정할 수 있습니다.
 
 ## 작동 방식 (Pipeline)
@@ -39,7 +40,10 @@
 │   ├── vocal_similarities.txt  # 유사도 행렬 (텍스트)
 │   └── vocal_clustermap.png    # 최종 결과물 (클러스터맵)
 ├── config.py          # 프로젝트의 모든 설정을 관리하는 파일
-├── main.py            # 메인 파이프라인 실행 스크립트
+├── main.py            # CLI 진입점 (pipeline.run_pipeline 호출)
+├── web.py             # 웹 UI 진입점 (python web.py)
+├── pipeline.py        # 단계 오케스트레이션 (CLI·웹 공용, 진행 콜백/취소 지원)
+├── input_store.py     # inputs/<아티스트>.txt 읽기·쓰기·이름 검증
 ├── processing.py      # 다운로드/변환/보컬 분리 (I/O 오케스트레이션)
 ├── fingerprint.py     # 청킹·VAD·임베딩 집계 등 순수 함수 (테스트 용이)
 ├── similarity.py      # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
@@ -47,9 +51,16 @@
 ├── models.py          # SpeechBrain 모델 로더
 ├── utils.py           # 한글 폰트 설정, 비디오 ID 추출
 ├── logger.py          # 로깅 설정
-├── tests/             # pytest 단위 테스트
-├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트
-└── requirements.txt   # 필요한 Python 라이브러리 목록
+├── webapp/            # 웹 UI (FastAPI + 정적 프런트엔드)
+│   ├── app.py         #   앱 팩토리 (create_app)
+│   ├── routers/       #   HTTP 엔드포인트 (artists / jobs / results)
+│   ├── services/      #   도메인 로직 (입력 관리, 백그라운드 작업, 결과 조회)
+│   └── static/        #   HTML/CSS/ES 모듈 (빌드 단계 없음)
+├── tests/             # pytest 단위 테스트 (tests/web: 웹 계층)
+├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트 (CLI)
+├── run_web.bat        # Windows 용 웹 UI 실행 스크립트
+├── requirements.txt   # 필요한 Python 라이브러리 목록
+└── requirements-web.txt # 웹 UI 추가 의존성 (fastapi, uvicorn)
 ```
 
 ## 설치
@@ -99,6 +110,41 @@ pip install -r requirements.txt
 3.  `run.bat`를 실행하거나, 터미널에서 `python main.py` 명령을 실행합니다.
 4.  처리가 완료되면 `database/vocal_clustermap.png` 와 `database/vocal_similarities.txt` 가 생성됩니다.
 
+## 🌐 웹 UI
+
+터미널 대신 브라우저에서 전체 파이프라인을 사용할 수 있습니다.
+
+```bash
+pip install -r requirements-web.txt   # 최초 1회 (requirements.txt 설치 후)
+python web.py                         # http://localhost:8000
+# 다른 PC 에서 접속하려면: python web.py --host 0.0.0.0 --port 8000
+```
+
+Windows 에서는 `run_web.bat` 을 실행하면 설치 → 서버 실행 → 브라우저 열기까지 자동으로 진행됩니다.
+
+| 패널 | 기능 |
+| --- | --- |
+| **1. 아티스트 & URL** | 아티스트 추가/수정/삭제 (`inputs/<이름>.txt` 와 동일), URL 별 처리 상태(대기 → 다운로드됨 → 보컬 분리됨 → 지문 완료) 표시 |
+| **2. 분석 실행** | 선택한 아티스트(또는 전체) 분석 시작, 단계별 진행률·실시간 로그, 취소 |
+| **3. 유사도 결과** | 아티스트 간 유사도 히트맵 표, 클러스터맵 이미지, CSV 다운로드 |
+
+- 웹 UI 와 CLI(`python main.py`)는 같은 `inputs/`, `database/` 폴더와 같은 파이프라인 코드(`pipeline.py`)를 사용하므로 섞어서 사용해도 됩니다.
+- 분석 작업은 GPU·파일을 공유하므로 **동시에 하나만** 실행됩니다. SpeechBrain 모델은 첫 작업에서 한 번만 로드되어 이후 작업에서 재사용됩니다.
+- API 문서(Swagger)는 `http://localhost:8000/docs` 에서 볼 수 있습니다.
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/artists` | 아티스트 목록 + URL 별 처리 상태 |
+| `PUT` | `/api/artists/{name}` | 아티스트 생성/URL 목록 덮어쓰기 (`{"urls": [...]}`) |
+| `DELETE` | `/api/artists/{name}?purge=true` | 삭제 (`purge` 시 `database/<이름>` 도 삭제) |
+| `POST` | `/api/jobs` | 분석 시작 (`{"artists": [...]}`, 생략 시 전체). 실행 중이면 409 |
+| `GET` | `/api/jobs/{id}?log_offset=N` | 진행 상태 + N번째 줄 이후 로그 |
+| `POST` | `/api/jobs/{id}/cancel` | 취소 (처리 중인 URL 완료 후 중단) |
+| `GET` | `/api/results/similarity` | 유사도 행렬 JSON (`.csv` 도 지원) |
+| `GET` | `/api/results/clustermap.png` | 마지막 실행에서 생성된 클러스터맵 |
+
+> ⚠️ 웹 UI 에는 인증 기능이 없습니다. `--host 0.0.0.0` 으로 외부에 공개할 때는 신뢰할 수 있는 네트워크에서만 사용하세요.
+
 ## 설정 (Configuration)
 
 `config.py` 파일에서 파이프라인의 세부 동작을 조정할 수 있습니다.
@@ -127,7 +173,7 @@ pip install -r requirements.txt
 
 ```bash
 # 개발용 라이브러리 설치
-pip install -r requirements-dev.txt
+pip install -r requirements-web.txt -r requirements-dev.txt
 ```
 
 ### 코드 스타일 검사 (Linting)
@@ -143,6 +189,8 @@ python -m pytest tests/
 ```
 
 - 알고리즘 로직(`fingerprint.py`, `similarity.py`)은 합성 텐서로 테스트합니다.
+- `pipeline.py` 테스트는 각 단계를 mock 하여 실행 순서·진행 콜백·취소만 검증합니다.
+- `tests/web/` 은 가짜 runner 를 주입한 `create_app(runner=...)` 으로 HTTP API 와 작업 상태 전이를 검증합니다 (모델·demucs 불필요).
 - `processing.py` 테스트는 `subprocess`/`torchaudio` 를 mock 하며, demucs 가 없어도 `tests/conftest.py` 의 스텁으로 실행됩니다.
 
 ## 라이선스

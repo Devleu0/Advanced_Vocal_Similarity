@@ -1,5 +1,6 @@
 import platform
 import re
+from urllib.parse import urlparse
 import matplotlib.pyplot as plt
 from logger import log
 
@@ -43,3 +44,19 @@ def extract_video_id(url):
     """
     match = re.search(r'(?:v=|\/|youtu\.be\/)([0-9A-Za-z_-]{11})', url)
     return match.group(1) if match else None
+
+
+_YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
+
+
+def is_youtube_url(url):
+    """유튜브 도메인이면서 비디오 ID 를 추출할 수 있는 URL 인지 검사합니다.
+
+    extract_video_id 는 경로의 11자리 문자열도 ID 로 인식하므로(예: example.com/not-youtube),
+    사용자 입력 검증에는 이 함수를 사용합니다.
+    """
+    if not url:
+        return False
+    host = urlparse(url if "://" in url else f"https://{url}").hostname or ""
+    on_youtube = any(host == h or host.endswith("." + h) for h in _YOUTUBE_HOSTS)
+    return on_youtube and extract_video_id(url) is not None
