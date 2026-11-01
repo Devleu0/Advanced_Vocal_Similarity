@@ -2,11 +2,11 @@
 
 [![Python CI](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml/badge.svg)](https://github.com/Devleu0/Advanced_Vocal_Similarity/actions/workflows/ci.yml)
 
-**Advanced Vocal Similarity**는 여러 유튜브 영상에 등장하는 인물들의 목소리를 분석하여 서로 얼마나 유사한지 측정하고 시각화하는 파이프라인입니다. 딥러닝 기반의 음성 분석 모델을 사용하여 각 영상의 오디오에서 보컬 "지문(fingerprint)"을 추출하고, 이를 상호 비교하여 유사도 점수를 계산합니다.
+**Advanced Vocal Similarity**는 여러 영상(유튜브 등 `yt-dlp` 가 지원하는 사이트)에 등장하는 인물들의 목소리를 분석하여 서로 얼마나 유사한지 측정하고 시각화하는 파이프라인입니다. 딥러닝 기반의 음성 분석 모델을 사용하여 각 영상의 오디오에서 보컬 "지문(fingerprint)"을 추출하고, 이를 상호 비교하여 유사도 점수를 계산합니다.
 
 ## 주요 기능
 
-- **유튜브 영상 지원**: 유튜브 URL만 제공하면 자동으로 오디오를 다운로드합니다.
+- **다양한 영상 사이트 지원**: URL만 제공하면 `yt-dlp` 가 지원하는 사이트(유튜브 등)에서 자동으로 오디오를 다운로드합니다.
 - **자동 보컬 분리**: Demucs 모델을 사용하여 배경 음악이나 잡음에서 보컬 목소리만 정확하게 분리합니다.
 - **음성 지문 추출**: 최신 음성 인식 모델(ECAPA-TDNN)을 통해 각 보컬의 고유한 특징을 벡터(Embedding)로 추출합니다.
 - **유사도 분석 및 시각화**: 추출된 모든 음성 지문을 상호 비교하여 코사인 유사도를 계산하고, 결과를 히트맵으로 시각화하여 한눈에 파악할 수 있도록 돕습니다.
@@ -16,7 +16,7 @@
 
 프로젝트는 다음 4단계의 자동화된 파이프라인으로 구성됩니다.
 
-1.  **입력 (Input)**: `inputs` 폴더에 `아티스트명.txt` 파일을 생성하고, 그 안에 분석할 유튜브 영상 URL 목록을 넣습니다.
+1.  **입력 (Input)**: `inputs` 폴더에 `아티스트명.txt` 파일을 생성하고, 그 안에 분석할 영상 URL 목록을 넣습니다.
 2.  **다운로드 및 변환 (Download & Convert)**: `yt-dlp`와 `ffmpeg`을 사용하여 각 URL에서 오디오를 다운로드하고, 표준 형식(MP3, 16kHz, mono)으로 변환합니다.
 3.  **처리 (Processing)**:
     - **보컬 분리**: `demucs`를 이용해 오디오에서 보컬 트랙을 분리합니다.
@@ -29,7 +29,7 @@
 
 ```
 .
-├── inputs/            # 분석할 유튜브 URL 목록 (txt 파일)을 이곳에 추가
+├── inputs/            # 분석할 영상 URL 목록 (txt 파일)을 이곳에 추가
 │   └── artist_A.txt
 ├── database/          # 처리 과정에서 생성된 파일들이 저장되는 공간
 │   ├── artist_A/
@@ -45,7 +45,7 @@
 ├── similarity.py      # 마스터 프로필 / 유사도 행렬 계산 (순수 함수)
 ├── visualization.py   # 임베딩 로드 및 히트맵·텍스트 출력
 ├── models.py          # SpeechBrain 모델 로더
-├── utils.py           # 한글 폰트 설정, 비디오 ID 추출
+├── utils.py           # 한글 폰트 설정, 영상 URL 식별(ID 생성)
 ├── logger.py          # 로깅 설정
 ├── tests/             # pytest 단위 테스트
 ├── run.bat            # Windows 사용자를 위한 간편 실행 스크립트
@@ -95,7 +95,7 @@ pip install -r requirements.txt
 ## 사용법
 
 1.  `inputs` 폴더 안에 `아티스트명.txt` 형식의 텍스트 파일을 생성합니다. (예: `iu.txt`)
-2.  해당 파일 안에 분석하고 싶은 유튜브 영상의 URL을 한 줄에 하나씩 추가합니다.
+2.  해당 파일 안에 분석하고 싶은 영상의 URL을 한 줄에 하나씩 추가합니다. (`yt-dlp` 지원 사이트면 유튜브가 아니어도 됩니다. 유튜브가 아닌 URL은 URL 해시로 파일을 구분하므로, 같은 영상을 다른 URL로 넣으면 별개 영상으로 취급됩니다.)
 3.  `run.bat`를 실행하거나, 터미널에서 `python main.py` 명령을 실행합니다.
 4.  처리가 완료되면 `database/vocal_clustermap.png` 와 `database/vocal_similarities.txt` 가 생성됩니다.
 
