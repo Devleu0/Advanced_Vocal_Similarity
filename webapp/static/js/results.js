@@ -2,7 +2,7 @@
 import { api } from './api.js';
 import { $, el, toast } from './dom.js';
 
-/** 0~1 값을 색으로 변환 (밝은 청록 → 진한 남색, 세포 글자색 대비 포함). */
+/** 0~1 값을 색으로 변환 (밝은 청록 → 진한 남색, 셀 글자색 대비 포함). */
 function cellStyle(value) {
   const v = Math.min(Math.max(value, 0), 1);
   const lightness = 96 - v * 70; // 96% → 26%
